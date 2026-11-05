@@ -62,6 +62,25 @@ CSV_FIELDS = [
 ]
 
 
+def seconds(value: str) -> int:
+    n = int(value)
+    if n < 0:
+        raise argparse.ArgumentTypeError("must be 0 or more seconds")
+    return n
+
+
+def add_interval(p: argparse.ArgumentParser, what: str) -> None:
+    """--sync-interval (and its short form --interval). Not given: the config file's value, which defaults to 30."""
+    p.add_argument(
+        "--sync-interval",
+        "--interval",
+        dest="interval",
+        type=seconds,
+        metavar="SECONDS",
+        help=f"seconds between syncs (default: the config file's sync_interval, normally 30){what}",
+    )
+
+
 def add_common(p: argparse.ArgumentParser) -> None:
     p.add_argument("--config", help="config file (default ~/.config/tokentrail/config.json)")
     p.add_argument("--store", help="local store folder (overrides the config)")
@@ -80,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     i = sub.add_parser("init", help="choose where data is kept and save the settings")
     add_common(i)
-    i.add_argument("--interval", type=int, help="seconds between syncs (default 30)")
+    add_interval(i, "; saved to the config")
     i.add_argument(
         "--keep-prompts-remote", action="store_true", help="upload prompt text to the remote too (off by default)"
     )
@@ -91,7 +110,7 @@ def build_parser() -> argparse.ArgumentParser:
     add_common(d)
     d.add_argument("--host", default="127.0.0.1")
     d.add_argument("--port", type=int, default=8765)
-    d.add_argument("--interval", type=int, help="seconds between syncs; 0 = read the store only")
+    add_interval(d, "; 0 = read the store only")
 
     for name, helptext in (
         ("daemon", "sync on a timer with no dashboard"),
@@ -102,7 +121,7 @@ def build_parser() -> argparse.ArgumentParser:
         s = sub.add_parser(name, help=helptext)
         add_common(s)
         if name == "daemon":
-            s.add_argument("--interval", type=int)
+            add_interval(s, "")
 
     s = sub.add_parser("summary", help="print the headline numbers")
     add_common(s)
@@ -170,7 +189,8 @@ def cmd_init(args: argparse.Namespace) -> int:
     print("TokenTrail keeps its own copy of your agents' telemetry, so it survives when agent history is cleared.")
     cfg.store = ask("Local store folder", cfg.store, args.yes)
     cfg.remote = ask("Remote mirror (gs://bucket/path, s3://bucket/path, or blank for none)", cfg.remote, args.yes)
-    cfg.sync_interval = int(ask("Seconds between syncs", str(cfg.sync_interval), args.yes))
+    if args.interval is None:
+        cfg.sync_interval = int(ask("Seconds between syncs", str(cfg.sync_interval), args.yes))
     if args.keep_prompts_remote:
         cfg.redact_remote = False
     path = cfg.save(args.config)

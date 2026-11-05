@@ -22,6 +22,7 @@ class TelemetryState:
         self.syncer = syncer
         self.mirror = mirror
         self.days = days
+        self.interval = 0
         self._stop = threading.Event()
         self.last_pull: dict[str, Any] = {}
 
@@ -51,6 +52,7 @@ class TelemetryState:
                 "remote": self.mirror.uri if self.mirror else "",
                 "last_sync": self.syncer.last if self.syncer else {},
                 "last_pull": self.last_pull,
+                "sync_interval": self.interval,
             },
             "health_order": [h.value for h in Health],
             "runs": runs,
@@ -59,6 +61,7 @@ class TelemetryState:
 
     def start(self, interval: int, pull_every: int = 300) -> None:
         """Sync every `interval` seconds; pull other machines' data every `pull_every` seconds when mirrored."""
+        self.interval = interval
         if interval <= 0 and not self.mirror:
             return
 

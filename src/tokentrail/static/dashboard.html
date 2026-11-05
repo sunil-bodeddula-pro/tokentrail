@@ -439,6 +439,7 @@ a { color: var(--accent); }
     try {
       const res = await fetch(force ? "/api/sync" : "/api/telemetry", { method: force ? "POST" : "GET" });
       state.data = await res.json();
+      followServerInterval(state.data.store?.sync_interval);
       const all = state.data.runs;
       fillSelect("#f-agent", "All agents", [...new Set(all.map((r) => r.agent))].sort(), state.agent);
       const machines = state.data.store?.machines || [];
@@ -451,6 +452,18 @@ a { color: var(--accent); }
       $("#synced").textContent = "⏱ Synced " + new Date().toLocaleTimeString();
       render();
     } catch (err) { $("#synced").textContent = "Sync failed: " + err.message; }
+  }
+  // Until the viewer picks an interval here, the page refreshes as often as the server syncs (--sync-interval).
+  function followServerInterval(secs) {
+    if (state.pickedInterval || !secs || state.followed === secs) return;
+    state.followed = secs;
+    const sel = $("#sync-every");
+    if (![...sel.options].some((o) => +o.value === secs)) {
+      const label = secs % 60 === 0 ? `${secs / 60}m` : `${secs}s`;
+      sel.add(new Option(label, String(secs)), [...sel.options].find((o) => +o.value > secs || +o.value === 0));
+    }
+    sel.value = String(secs);
+    schedule();
   }
   function schedule() {
     clearInterval(state.timer);
@@ -472,12 +485,12 @@ a { color: var(--accent); }
   $("#ctabs").onclick = (e) => { const b = e.target.closest("[data-ct]"); if (!b) return; state.chartTab = b.dataset.ct; render(); };
   $("#runs thead").onclick = (e) => { const th = e.target.closest("[data-sort]"); if (!th) return; const k = th.dataset.sort; state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : -1 }; render(); };
   $("#sync-now").onclick = () => load(true);
-  $("#sync-every").onchange = () => { try { localStorage.setItem("ao-sync", $("#sync-every").value); } catch (e) {} schedule(); };
+  $("#sync-every").onchange = () => { state.pickedInterval = true; try { localStorage.setItem("ao-sync", $("#sync-every").value); } catch (e) {} schedule(); };
   $("#theme").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("ao-theme", t); } catch (e) {} render(); };
   $("#inspect-close").onclick = () => $("#inspect").close();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && +$("#sync-every").value) load(false); });
-  try { const t = localStorage.getItem("ao-theme"); if (t) document.documentElement.dataset.theme = t; const s = localStorage.getItem("ao-sync"); if (s) $("#sync-every").value = s; } catch (e) {}
+  try { const t = localStorage.getItem("ao-theme"); if (t) document.documentElement.dataset.theme = t; const s = localStorage.getItem("ao-sync"); if (s && [...$("#sync-every").options].some((o) => o.value === s)) { $("#sync-every").value = s; state.pickedInterval = true; } } catch (e) {}
   schedule();
   load(false);
 })();

@@ -498,3 +498,34 @@ class CliTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SyncIntervalTest(unittest.TestCase):
+    def interval(self, *argv: str, saved: int | None = None) -> int:
+        from tokentrail import cli
+        from tokentrail import config as cfgmod
+
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "config.json")
+            if saved is not None:
+                cfgmod.Config(sync_interval=saved).save(path)
+            args = cli.build_parser().parse_args(["dashboard", "--config", path, *argv])
+            return cli.settings(args).sync_interval
+
+    def test_default_is_30(self):
+        self.assertEqual(self.interval(), 30)
+
+    def test_flag_wins_over_config(self):
+        self.assertEqual(self.interval("--sync-interval", "45", saved=120), 45)
+        self.assertEqual(self.interval("--interval", "10"), 10)
+
+    def test_config_used_when_no_flag(self):
+        self.assertEqual(self.interval(saved=120), 120)
+
+    def test_negative_rejected(self):
+        with self.assertRaises(SystemExit), open(os.devnull, "w") as null:
+            stderr, sys.stderr = sys.stderr, null
+            try:
+                self.interval("--sync-interval", "-1")
+            finally:
+                sys.stderr = stderr

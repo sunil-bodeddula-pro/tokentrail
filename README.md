@@ -56,7 +56,7 @@ From a source checkout, run `pip install -e .` or use `PYTHONPATH=src python3 -m
 | Command | What it does |
 | :--- | :--- |
 | `tokentrail init` | Save settings, check the remote is reachable, run the first sync. `--service` also installs the background service; `--keep-prompts-remote` uploads prompt text too |
-| `tokentrail` or `tokentrail dashboard` | Pull other machines' data, sync, and serve the dashboard. `--port`, `--host`, `--interval` (0 = read the store only) |
+| `tokentrail` or `tokentrail dashboard` | Pull other machines' data, sync, and serve the dashboard. `--port`, `--host`, `--sync-interval SECONDS` (0 = read the store only) |
 | `tokentrail daemon` | Sync on a timer with no dashboard. This is what the service runs |
 | `tokentrail sync` | Sync once and exit |
 | `tokentrail pull` | Download other machines' data from the remote, and restore any of this machine's files missing locally |
@@ -64,6 +64,8 @@ From a source checkout, run `pip install -e .` or use `PYTHONPATH=src python3 -m
 | `tokentrail summary --days 30` | Headline numbers in the terminal |
 | `tokentrail export --json F --csv F` | Everything as JSON (runs, commits, KPIs, breakdowns, ROI), or one CSV row per task run |
 | `tokentrail service install \| uninstall \| print` | Run `daemon` at login: a systemd user unit (Linux), a launchd agent (macOS) or a Task Scheduler task (Windows). `print` shows what would be installed |
+
+**Sync interval:** `--sync-interval SECONDS` (or `--interval`) on `init`, `dashboard` and `daemon` sets how often TokenTrail syncs, for example `tokentrail --port 8765 --sync-interval 60`. Without it, the `sync_interval` setting is used, which is 30 seconds unless you changed it. With `init`, the value is saved to the config. The dashboard page refreshes at the same interval until you pick another one in its Auto-sync menu.
 
 Options that work with every command except `service`: `--config FILE`, `--store DIR`, `--remote URI`, `--no-remote`, `--days N` (0 = everything) and `--no-git`.
 
