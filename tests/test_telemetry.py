@@ -2,6 +2,7 @@
 
 Fixtures are written to a temporary directory; nothing touches the network or your real agent logs.
 """
+
 import json
 import os
 import subprocess
@@ -11,12 +12,12 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from tokentrail.adapters import ClaudeCodeAdapter, GenericJsonlAdapter  # noqa: E402
-from tokentrail.analytics import kpis, roi  # noqa: E402
-from tokentrail.git_collector import parse_log  # noqa: E402
-from tokentrail.models import Health, TaskRun  # noqa: E402
-from tokentrail.pricing import Pricing  # noqa: E402
-from tokentrail.segment import build_runs, classify  # noqa: E402
+from tokentrail.adapters import ClaudeCodeAdapter, GenericJsonlAdapter
+from tokentrail.analytics import kpis, roi
+from tokentrail.git_collector import parse_log
+from tokentrail.models import Health, TaskRun
+from tokentrail.pricing import Pricing
+from tokentrail.segment import build_runs, classify
 
 
 def write_jsonl(path, rows):
@@ -28,29 +29,96 @@ def write_jsonl(path, rows):
 
 def claude_transcript(session="s1", model="claude-opus-5-5"):
     """Two prompts. The first response is logged as two lines sharing one message id (as Claude Code does)."""
-    usage = {"input_tokens": 10, "output_tokens": 100, "cache_read_input_tokens": 900, "cache_creation_input_tokens": 90,
-             "output_tokens_details": {"thinking_tokens": 40}}
+    usage = {
+        "input_tokens": 10,
+        "output_tokens": 100,
+        "cache_read_input_tokens": 900,
+        "cache_creation_input_tokens": 90,
+        "output_tokens_details": {"thinking_tokens": 40},
+    }
     base = {"sessionId": session, "cwd": "/tmp/proj", "isSidechain": False}
     return [
         {**base, "type": "ai-title", "aiTitle": "Fix the parser"},
-        {**base, "type": "user", "timestamp": "2026-11-01T10:00:00Z", "message": {"role": "user", "content": "Fix the parser bug"}},
-        {**base, "type": "assistant", "timestamp": "2026-11-01T10:00:05Z",
-         "message": {"id": "m1", "model": model, "usage": usage, "content": [{"type": "thinking", "thinking": ""}]}},
-        {**base, "type": "assistant", "timestamp": "2026-11-01T10:00:05Z",
-         "message": {"id": "m1", "model": model, "usage": usage,
-                     "content": [{"type": "tool_use", "id": "t1", "name": "Read", "input": {"file_path": "/tmp/proj/parser.py"}}]}},
-        {**base, "type": "user", "timestamp": "2026-11-01T10:00:06Z",
-         "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "x" * 400, "is_error": False}]}},
-        {**base, "type": "assistant", "timestamp": "2026-11-01T10:00:10Z",
-         "message": {"id": "m2", "model": model, "usage": usage,
-                     "content": [{"type": "tool_use", "id": "t2", "name": "Edit", "input": {"file_path": "/tmp/proj/parser.py"}}]}},
-        {**base, "type": "user", "timestamp": "2026-11-01T10:00:11Z",
-         "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "failed", "is_error": True}]}},
-        {**base, "type": "user", "timestamp": "2026-11-01T10:00:12Z", "isMeta": True, "message": {"role": "user", "content": "injected"}},
-        {**base, "type": "user", "timestamp": "2026-11-01T10:05:00Z", "message": {"role": "user", "content": "Now add a test"}},
-        {**base, "type": "assistant", "timestamp": "2026-11-01T10:05:04Z",
-         "message": {"id": "m3", "model": model, "usage": usage,
-                     "content": [{"type": "tool_use", "id": "t3", "name": "Skill", "input": {"skill": "unit-tests"}}]}},
+        {
+            **base,
+            "type": "user",
+            "timestamp": "2026-11-01T10:00:00Z",
+            "message": {"role": "user", "content": "Fix the parser bug"},
+        },
+        {
+            **base,
+            "type": "assistant",
+            "timestamp": "2026-11-01T10:00:05Z",
+            "message": {"id": "m1", "model": model, "usage": usage, "content": [{"type": "thinking", "thinking": ""}]},
+        },
+        {
+            **base,
+            "type": "assistant",
+            "timestamp": "2026-11-01T10:00:05Z",
+            "message": {
+                "id": "m1",
+                "model": model,
+                "usage": usage,
+                "content": [
+                    {"type": "tool_use", "id": "t1", "name": "Read", "input": {"file_path": "/tmp/proj/parser.py"}}
+                ],
+            },
+        },
+        {
+            **base,
+            "type": "user",
+            "timestamp": "2026-11-01T10:00:06Z",
+            "message": {
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "x" * 400, "is_error": False}],
+            },
+        },
+        {
+            **base,
+            "type": "assistant",
+            "timestamp": "2026-11-01T10:00:10Z",
+            "message": {
+                "id": "m2",
+                "model": model,
+                "usage": usage,
+                "content": [
+                    {"type": "tool_use", "id": "t2", "name": "Edit", "input": {"file_path": "/tmp/proj/parser.py"}}
+                ],
+            },
+        },
+        {
+            **base,
+            "type": "user",
+            "timestamp": "2026-11-01T10:00:11Z",
+            "message": {
+                "role": "user",
+                "content": [{"type": "tool_result", "tool_use_id": "t2", "content": "failed", "is_error": True}],
+            },
+        },
+        {
+            **base,
+            "type": "user",
+            "timestamp": "2026-11-01T10:00:12Z",
+            "isMeta": True,
+            "message": {"role": "user", "content": "injected"},
+        },
+        {
+            **base,
+            "type": "user",
+            "timestamp": "2026-11-01T10:05:00Z",
+            "message": {"role": "user", "content": "Now add a test"},
+        },
+        {
+            **base,
+            "type": "assistant",
+            "timestamp": "2026-11-01T10:05:04Z",
+            "message": {
+                "id": "m3",
+                "model": model,
+                "usage": usage,
+                "content": [{"type": "tool_use", "id": "t3", "name": "Skill", "input": {"skill": "unit-tests"}}],
+            },
+        },
     ]
 
 
@@ -58,7 +126,9 @@ class ClaudeAdapterTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         write_jsonl(os.path.join(self.tmp.name, "proj", "s1.jsonl"), claude_transcript())
-        self.runs = build_runs(ClaudeCodeAdapter(self.tmp.name).events(os.path.join(self.tmp.name, "proj", "s1.jsonl")), Pricing())
+        self.runs = build_runs(
+            ClaudeCodeAdapter(self.tmp.name).events(os.path.join(self.tmp.name, "proj", "s1.jsonl")), Pricing()
+        )
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -70,7 +140,7 @@ class ClaudeAdapterTest(unittest.TestCase):
 
     def test_usage_counted_once_per_message(self):
         r = self.runs[0]
-        self.assertEqual(r.steps, 2)                       # m1 (two lines) and m2
+        self.assertEqual(r.steps, 2)  # m1 (two lines) and m2
         self.assertEqual(r.output_tokens, 200)
         self.assertEqual(r.cache_read_tokens, 1800)
         self.assertEqual(r.thinking_tokens, 80)
@@ -91,24 +161,55 @@ class ClaudeAdapterTest(unittest.TestCase):
 class GenericAdapterTest(unittest.TestCase):
     def test_reads_generic_events(self):
         with tempfile.TemporaryDirectory() as d:
-            write_jsonl(os.path.join(d, "a.jsonl"), [
-                {"event": "prompt", "session_id": "g1", "agent": "My Agent", "ts": "2026-11-01T09:00:00Z", "text": "do it", "chars": 5},
-                {"event": "response", "session_id": "g1", "ts": "2026-11-01T09:00:02Z", "model": "local-llama", "message_id": "r1",
-                 "usage": {"input": 50, "output": 20}},
-                {"event": "tool_call", "session_id": "g1", "ts": "2026-11-01T09:00:03Z", "tool": "write_file", "target": "a.py"},
-                {"event": "tool_result", "session_id": "g1", "ts": "2026-11-01T09:00:04Z", "error": False, "chars": 10},
-                {"event": "bogus", "session_id": "g1"},
-            ])
+            write_jsonl(
+                os.path.join(d, "a.jsonl"),
+                [
+                    {
+                        "event": "prompt",
+                        "session_id": "g1",
+                        "agent": "My Agent",
+                        "ts": "2026-11-01T09:00:00Z",
+                        "text": "do it",
+                        "chars": 5,
+                    },
+                    {
+                        "event": "response",
+                        "session_id": "g1",
+                        "ts": "2026-11-01T09:00:02Z",
+                        "model": "local-llama",
+                        "message_id": "r1",
+                        "usage": {"input": 50, "output": 20},
+                    },
+                    {
+                        "event": "tool_call",
+                        "session_id": "g1",
+                        "ts": "2026-11-01T09:00:03Z",
+                        "tool": "write_file",
+                        "target": "a.py",
+                    },
+                    {
+                        "event": "tool_result",
+                        "session_id": "g1",
+                        "ts": "2026-11-01T09:00:04Z",
+                        "error": False,
+                        "chars": 10,
+                    },
+                    {"event": "bogus", "session_id": "g1"},
+                ],
+            )
             runs = build_runs(GenericJsonlAdapter(d).events(os.path.join(d, "a.jsonl")), Pricing())
         self.assertEqual(len(runs), 1)
         r = runs[0]
-        self.assertEqual((r.agent, r.model, r.steps, r.file_writes, r.input_tokens), ("My Agent", "local-llama", 1, 1, 50))
-        self.assertFalse(r.priced)                         # unknown model: unpriced, not guessed
+        self.assertEqual(
+            (r.agent, r.model, r.steps, r.file_writes, r.input_tokens), ("My Agent", "local-llama", 1, 1, 50)
+        )
+        self.assertFalse(r.priced)  # unknown model: unpriced, not guessed
 
 
 class EmitTest(unittest.TestCase):
     def test_emit_round_trip(self):
         from tokentrail.emit import EventLog
+
         with tempfile.TemporaryDirectory() as d:
             log = EventLog(agent="Bot One", session_id="e1", workspace="/w", root=d)
             log.prompt("ship it")
@@ -123,7 +224,16 @@ class EmitTest(unittest.TestCase):
 
 class HealthTest(unittest.TestCase):
     def run_(self, **kw):
-        base = dict(run_id="x", conversation_id="x", agent="a", steps=10, tool_calls=10, tool_errors=0, file_writes=1, max_repeat=1)
+        base = dict(
+            run_id="x",
+            conversation_id="x",
+            agent="a",
+            steps=10,
+            tool_calls=10,
+            tool_errors=0,
+            file_writes=1,
+            max_repeat=1,
+        )
         base.update(kw)
         return TaskRun(**base)
 
@@ -138,6 +248,7 @@ class HealthTest(unittest.TestCase):
 
     def test_loop_detection(self):
         from tokentrail.models import Event, Kind
+
         evs = [Event(Kind.PROMPT, "2026-11-01T00:00:00Z", "c", text="go")]
         for i in range(5):
             evs.append(Event(Kind.RESPONSE, f"2026-11-01T00:00:0{i + 1}Z", "c", message_id=f"m{i}", model="m"))
@@ -147,10 +258,32 @@ class HealthTest(unittest.TestCase):
 
 class KpiTest(unittest.TestCase):
     def test_definitions(self):
-        a = TaskRun("a", "c1", "x", steps=10, input_tokens=100, cache_write_tokens=0, output_tokens=50, cache_read_tokens=900,
-                    tool_calls=10, tool_errors=1, health=Health.HIGH_VELOCITY.value, cost_usd=1.0)
-        b = TaskRun("b", "c1", "x", steps=30, input_tokens=100, output_tokens=50, cache_read_tokens=0, tool_calls=30,
-                    health=Health.TOOL_LOOPS.value, cost_usd=2.0)
+        a = TaskRun(
+            "a",
+            "c1",
+            "x",
+            steps=10,
+            input_tokens=100,
+            cache_write_tokens=0,
+            output_tokens=50,
+            cache_read_tokens=900,
+            tool_calls=10,
+            tool_errors=1,
+            health=Health.HIGH_VELOCITY.value,
+            cost_usd=1.0,
+        )
+        b = TaskRun(
+            "b",
+            "c1",
+            "x",
+            steps=30,
+            input_tokens=100,
+            output_tokens=50,
+            cache_read_tokens=0,
+            tool_calls=30,
+            health=Health.TOOL_LOOPS.value,
+            cost_usd=2.0,
+        )
         k = kpis([a, b])
         self.assertEqual(k["sessions"], 2)
         self.assertEqual(k["conversations"], 1)
@@ -165,8 +298,21 @@ class KpiTest(unittest.TestCase):
 class GitTest(unittest.TestCase):
     def test_parse_log(self):
         sep, end = "\x1f", "\x1e"
-        text = (sep.join(["a1", "Me", "me@x.com", "2026-11-01T00:00:00Z", "feat(api): add #12 support", "Co-Authored-By: Claude <c@a.com>"]) + end
-                + sep.join(["b2", "Other", "o@x.com", "2026-11-02T00:00:00Z", "tidy up PROJ-7", ""]) + end)
+        text = (
+            sep.join(
+                [
+                    "a1",
+                    "Me",
+                    "me@x.com",
+                    "2026-11-01T00:00:00Z",
+                    "feat(api): add #12 support",
+                    "Co-Authored-By: Claude <c@a.com>",
+                ]
+            )
+            + end
+            + sep.join(["b2", "Other", "o@x.com", "2026-11-02T00:00:00Z", "tidy up PROJ-7", ""])
+            + end
+        )
         a, b = parse_log(text, "repo", {"me@x.com"}, None)
         self.assertEqual((a.type, a.scope, a.issues, a.ai_tagged, a.mine), ("feat", "api", ["#12"], True, True))
         self.assertEqual((b.type, b.issues, b.ai_tagged, b.mine), ("", ["PROJ-7"], False, False))
@@ -179,6 +325,7 @@ class StoreSyncTest(unittest.TestCase):
         from tokentrail.mirror import Mirror
         from tokentrail.store import Store
         from tokentrail.sync import Syncer
+
         with tempfile.TemporaryDirectory() as d:
             src = os.path.join(d, "claude", "proj", "s1.jsonl")
             write_jsonl(src, claude_transcript())
@@ -188,8 +335,8 @@ class StoreSyncTest(unittest.TestCase):
             first = syncer.run()
             self.assertEqual((first["parsed"], first["conversations_changed"]), (1, 1))
             self.assertGreaterEqual(first["pushed"], 1)
-            self.assertEqual(syncer.run()["parsed"], 0)          # unchanged file is skipped
-            os.remove(src)                                       # agent history cleared
+            self.assertEqual(syncer.run()["parsed"], 0)  # unchanged file is skipped
+            os.remove(src)  # agent history cleared
             syncer.run()
             runs, _, machines = store.read_all()
             self.assertEqual((len(runs), machines), (2, ["m1"]))
@@ -201,9 +348,9 @@ class StoreSyncTest(unittest.TestCase):
             self.assertEqual(pulled[0]["prompt"], "")
 
 
-
 class FakeGCS:
     """Just enough of google.cloud.storage.Client: bucket(), list_blobs(), blob().download/upload."""
+
     def __init__(self):
         self.objects = {}
 
@@ -216,7 +363,9 @@ class FakeGCS:
 
             @property
             def md5_hash(self):
-                import base64, hashlib
+                import base64
+                import hashlib
+
                 return base64.b64encode(hashlib.md5(client.objects[self.key]).digest()).decode()
 
             def download_as_bytes(self):
@@ -228,6 +377,7 @@ class FakeGCS:
         class Bucket:
             def blob(self, key):
                 return Blob(key)
+
         return Bucket()
 
     def list_blobs(self, bucket, prefix=""):
@@ -236,6 +386,7 @@ class FakeGCS:
 
 class FakeS3:
     """Just enough of a boto3 S3 client: put_object, get_object, list_objects_v2 paginator."""
+
     def __init__(self):
         self.objects = {}
 
@@ -244,18 +395,25 @@ class FakeS3:
 
     def get_object(self, Bucket, Key):
         import io
+
         return {"Body": io.BytesIO(self.objects[(Bucket, Key)])}
 
     def get_paginator(self, name):
         import hashlib
+
         fake = self
 
         class Pager:
             def paginate(self, Bucket, Prefix):
                 keys = [k for b, k in sorted(fake.objects) if b == Bucket and k.startswith(Prefix)]
-                for i in range(0, len(keys), 2):                    # two per page, to exercise paging
-                    yield {"Contents": [{"Key": k, "ETag": '"%s"' % hashlib.md5(fake.objects[(Bucket, k)]).hexdigest()}
-                                        for k in keys[i:i + 2]]}
+                for i in range(0, len(keys), 2):  # two per page, to exercise paging
+                    yield {
+                        "Contents": [
+                            {"Key": k, "ETag": f'"{hashlib.md5(fake.objects[(Bucket, k)]).hexdigest()}"'}
+                            for k in keys[i : i + 2]
+                        ]
+                    }
+
         return Pager()
 
 
@@ -264,41 +422,47 @@ class CloudBackendTest(unittest.TestCase):
         from tokentrail.mirror import Mirror
         from tokentrail.store import Store
         from tokentrail.sync import Syncer
+
         with tempfile.TemporaryDirectory() as d:
             write_jsonl(os.path.join(d, "claude", "proj", "s1.jsonl"), claude_transcript())
             store = Store(os.path.join(d, "store"), "m1")
             mirror = Mirror(store, "x://", backend=make_backend())
             syncer = Syncer(store, [ClaudeCodeAdapter(os.path.join(d, "claude"))], Pricing(), git=False, mirror=mirror)
             self.assertGreaterEqual(syncer.run()["pushed"], 1)
-            self.assertEqual(mirror.push(), 0)                       # nothing changed, nothing re-sent
+            self.assertEqual(mirror.push(), 0)  # nothing changed, nothing re-sent
             other = Store(os.path.join(d, "other"), "m2")
             backend = mirror.backend
             self.assertGreaterEqual(Mirror(other, "x://", backend=backend).pull(), 1)
-            self.assertEqual(Mirror(other, "x://", backend=backend).pull(), 0)   # unchanged on the second pull
+            self.assertEqual(Mirror(other, "x://", backend=backend).pull(), 0)  # unchanged on the second pull
             pulled, _, machines = other.read_all()
             self.assertEqual((len(pulled), machines), (2, ["m1"]))
             self.assertTrue(all(r["prompt"] == "" and r["redacted"] for r in pulled))
 
     def test_gcs_with_prefix(self):
         from tokentrail.mirror import GCSBackend
+
         fake = FakeGCS()
         self.round_trip(lambda: GCSBackend("b", "team/tt/", client=fake))
         self.assertTrue(all(k.startswith("team/tt/v1/m1/") for k in fake.objects))
 
     def test_s3_without_prefix(self):
         from tokentrail.mirror import S3Backend
+
         fake = FakeS3()
         self.round_trip(lambda: S3Backend("b", "", client=fake))
         self.assertTrue(all(k.startswith("v1/m1/") for _, k in fake.objects))
 
     def test_missing_addon_message(self):
         import importlib.util
+
         from tokentrail.mirror import backend_for
+
         if importlib.util.find_spec("boto3"):
             self.skipTest("boto3 installed")
         with self.assertRaises(SystemExit) as ctx:
             backend_for("s3://bucket/x")
         self.assertIn("tokentrail[s3]", str(ctx.exception))
+
 
 class CliTest(unittest.TestCase):
     def test_sync_summary_export(self):
@@ -306,11 +470,25 @@ class CliTest(unittest.TestCase):
             write_jsonl(os.path.join(d, "claude", "proj", "s1.jsonl"), claude_transcript())
             cfg = os.path.join(d, "config.json")
             with open(cfg, "w", encoding="utf-8") as fh:
-                json.dump({"store": os.path.join(d, "store"), "claude_dir": os.path.join(d, "claude"),
-                           "events_dir": os.path.join(d, "none")}, fh)
+                json.dump(
+                    {
+                        "store": os.path.join(d, "store"),
+                        "claude_dir": os.path.join(d, "claude"),
+                        "events_dir": os.path.join(d, "none"),
+                    },
+                    fh,
+                )
             env = {**os.environ, "PYTHONPATH": os.path.join(os.path.dirname(__file__), "..", "src")}
-            run = lambda *a: subprocess.run([sys.executable, "-m", "tokentrail", *a, "--config", cfg, "--no-git"],
-                                            capture_output=True, text=True, env=env, check=True).stdout
+
+            def run(*a: str) -> str:
+                return subprocess.run(
+                    [sys.executable, "-m", "tokentrail", *a, "--config", cfg, "--no-git"],
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    check=True,
+                ).stdout
+
             self.assertIn("2 task runs in 1 conversations", run("summary"))
             run("export", "--json", os.path.join(d, "o.json"), "--csv", os.path.join(d, "o.csv"))
             with open(os.path.join(d, "o.json"), encoding="utf-8") as fh:

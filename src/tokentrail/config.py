@@ -3,6 +3,7 @@
 Every setting can also be given on the command line, which wins over the file. TOKENTRAIL_CONFIG points at a
 different file.
 """
+
 from __future__ import annotations
 
 import json
@@ -23,11 +24,11 @@ def config_path() -> str:
 
 @dataclass
 class Config:
-    store: str = "~/.tokentrail/store"                  # local folder: the system of record
-    remote: str = ""                                    # optional mirror: gs://, s3:// or file://
-    machine_id: str = ""                                # blank: the store keeps a stable name in <store>/.machine-id
+    store: str = "~/.tokentrail/store"  # local folder: the system of record
+    remote: str = ""  # optional mirror: gs://, s3:// or file://
+    machine_id: str = ""  # blank: the store keeps a stable name in <store>/.machine-id
     sync_interval: int = 30
-    redact_remote: bool = True                          # strip prompt text and titles before uploading
+    redact_remote: bool = True  # strip prompt text and titles before uploading
     claude_dir: str = "~/.claude/projects"
     events_dir: str = "~/.tokentrail/events"
     adapters: list[str] = field(default_factory=lambda: ["claude-code", "generic"])

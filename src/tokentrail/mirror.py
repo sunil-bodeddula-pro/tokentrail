@@ -10,13 +10,26 @@ unchanged file is never re-sent); pull downloads other machines' files, and any 
 missing locally (restoring a wiped store). With redact on (the default), prompt text and titles are removed from
 run files before upload.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 import os
+from typing import TYPE_CHECKING, Any, Protocol
+
+if TYPE_CHECKING:
+    from .store import Store
 
 from .store import FORMAT, NOT_SENT_REMOTE, read_json, write_json
+
+
+class Backend(Protocol):
+    def list(self, prefix: str) -> dict[str, str]: ...
+
+    def get(self, rel: str) -> bytes: ...
+
+    def put(self, rel: str, data: bytes) -> None: ...
 
 
 class FileBackend:
@@ -47,7 +60,7 @@ class FileBackend:
 
 
 class GCSBackend:
-    def __init__(self, bucket: str, prefix: str, client=None):
+    def __init__(self, bucket: str, prefix: str, client: Any = None):
         if client is None:
             try:
                 from google.cloud import storage
@@ -63,27 +76,28 @@ class GCSBackend:
 
     def list(self, prefix: str) -> dict[str, str]:
         import base64
+
         out = {}
         for blob in self.client.list_blobs(self.bucket, prefix=self._key(prefix)):
-            rel = blob.name[len(self.prefix) + 1:] if self.prefix else blob.name
+            rel = blob.name[len(self.prefix) + 1 :] if self.prefix else blob.name
             out[rel] = base64.b64decode(blob.md5_hash).hex() if blob.md5_hash else ""
         return out
 
     def get(self, rel: str) -> bytes:
-        return self.bucket.blob(self._key(rel)).download_as_bytes()
+        return bytes(self.bucket.blob(self._key(rel)).download_as_bytes())
 
     def put(self, rel: str, data: bytes) -> None:
         self.bucket.blob(self._key(rel)).upload_from_string(data, content_type="application/json")
 
 
 class S3Backend:
-    def __init__(self, bucket: str, prefix: str, client=None):
+    def __init__(self, bucket: str, prefix: str, client: Any = None):
         if client is None:
             try:
                 import boto3
             except ImportError as exc:
                 raise SystemExit("s3:// needs boto3: pip install 'tokentrail[s3]'") from exc
-            client = boto3.client("s3")                     # honours AWS_ENDPOINT_URL, AWS_PROFILE, AWS_REGION
+            client = boto3.client("s3")  # honours AWS_ENDPOINT_URL, AWS_PROFILE, AWS_REGION
         self.client = client
         self.bucket = bucket
         self.prefix = prefix.strip("/")
@@ -95,18 +109,18 @@ class S3Backend:
         out = {}
         for page in self.client.get_paginator("list_objects_v2").paginate(Bucket=self.bucket, Prefix=self._key(prefix)):
             for obj in page.get("Contents", []):
-                rel = obj["Key"][len(self.prefix) + 1:] if self.prefix else obj["Key"]
-                out[rel] = obj.get("ETag", "").strip('"')       # the MD5 for single-part uploads, which these are
+                rel = obj["Key"][len(self.prefix) + 1 :] if self.prefix else obj["Key"]
+                out[rel] = obj.get("ETag", "").strip('"')  # the MD5 for single-part uploads, which these are
         return out
 
     def get(self, rel: str) -> bytes:
-        return self.client.get_object(Bucket=self.bucket, Key=self._key(rel))["Body"].read()
+        return bytes(self.client.get_object(Bucket=self.bucket, Key=self._key(rel))["Body"].read())
 
     def put(self, rel: str, data: bytes) -> None:
         self.client.put_object(Bucket=self.bucket, Key=self._key(rel), Body=data, ContentType="application/json")
 
 
-def backend_for(uri: str):
+def backend_for(uri: str) -> Backend:
     if uri.startswith("gs://"):
         bucket, _, prefix = uri[5:].partition("/")
         return GCSBackend(bucket, prefix)
@@ -132,14 +146,14 @@ def redact(rel: str, data: bytes) -> bytes:
 
 
 class Mirror:
-    def __init__(self, store, uri: str, redact_prompts: bool = True, backend=None):
+    def __init__(self, store: Store, uri: str, redact_prompts: bool = True, backend: Backend | None = None):
         self.store = store
         self.uri = uri
         self.redact_prompts = redact_prompts
-        self.backend = backend or backend_for(uri)
-        self.state_path = os.path.join(store.root, ".mirror-state.json")   # outside v1/, never uploaded
+        self.backend: Backend = backend or backend_for(uri)
+        self.state_path = os.path.join(store.root, ".mirror-state.json")  # outside v1/, never uploaded
 
-    def _state(self) -> dict:
+    def _state(self) -> dict[str, Any]:
         return read_json(self.state_path, {}) or {}
 
     def push(self) -> int:
@@ -177,7 +191,7 @@ class Mirror:
             local = os.path.join(self.store.root, rel)
             if rel.startswith(mine):
                 if os.path.exists(local):
-                    continue                     # local is the system of record for this machine
+                    continue  # local is the system of record for this machine
             elif got.get(rel) == digest and os.path.exists(local):
                 continue
             data = self.backend.get(rel)

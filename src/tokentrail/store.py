@@ -2,15 +2,18 @@
 
 Layout (plain JSON files, one per conversation, so a sync rewrites only what changed):
 
-    <store>/v1/<machine>/runs/<agent>/<conversation_id>.json   {"agent", "conversation_id", "source", "updated", "runs": [...]}
-    <store>/v1/<machine>/commits/<repo>.json                    {"repo", "updated", "commits": [...]}
+    <store>/v1/<machine>/runs/<agent>/<conversation_id>.json
+        {"agent", "conversation_id", "machine", "source", "updated", "runs": [...]}
+    <store>/v1/<machine>/commits/<repo>.json
+        {"repo", "machine", "updated", "commits": [...]}
     <store>/v1/<machine>/manifest.json                          {"machine", "hostname", "version", "updated"}
-    <store>/v1/<machine>/sources.json                           which agent files were read, by size and mtime (local only)
+    <store>/v1/<machine>/sources.json                           agent files already read, by size and mtime (local)
 
 Rules: sync only adds and updates; nothing is deleted when an agent's history disappears. Writes go to a temporary
 file and are renamed into place, so a crash never leaves a half-written file. Several machines can share one store
 (through a bucket mirror); the reader merges them.
 """
+
 from __future__ import annotations
 
 import json
@@ -19,7 +22,8 @@ import re
 import socket
 import threading
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
+from typing import Any
 
 from . import __version__
 
@@ -28,14 +32,14 @@ NOT_SENT_REMOTE = ("sources.json",)
 
 
 def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="seconds")
+    return datetime.now(UTC).isoformat(timespec="seconds")
 
 
 def slug(text: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-") or "unknown"
 
 
-def write_json(path: str, data) -> None:
+def write_json(path: str, data: Any) -> None:
     os.makedirs(os.path.dirname(path), exist_ok=True)
     tmp = f"{path}.{uuid.uuid4().hex[:6]}.tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
@@ -43,7 +47,7 @@ def write_json(path: str, data) -> None:
     os.replace(tmp, path)
 
 
-def read_json(path: str, default=None):
+def read_json(path: str, default: Any = None) -> Any:
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
@@ -57,7 +61,7 @@ class Store:
         os.makedirs(os.path.join(self.root, FORMAT), exist_ok=True)
         self.machine = slug(machine_id or self._local_machine_id())
         self.base = os.path.join(self.root, FORMAT, self.machine)
-        self._read_cache: dict[str, tuple] = {}
+        self._read_cache: dict[str, tuple[tuple[int, int], Any]] = {}
         self._lock = threading.Lock()
 
     def _local_machine_id(self) -> str:
@@ -68,13 +72,15 @@ class Store:
             host = re.sub(r"[^a-z0-9-]+", "-", socket.gethostname().lower()).strip("-") or "machine"
             mid = f"{host[:24]}-{uuid.uuid4().hex[:4]}"
             write_json(path, mid)
-        return mid
+        return str(mid)
 
     # ---------- writing ----------
     def conversation_path(self, agent: str, conversation_id: str) -> str:
         return os.path.join(self.base, "runs", slug(agent), slug(conversation_id) + ".json")
 
-    def upsert_conversation(self, agent: str, conversation_id: str, runs: list[dict], source: str = "") -> bool:
+    def upsert_conversation(
+        self, agent: str, conversation_id: str, runs: list[dict[str, Any]], source: str = ""
+    ) -> bool:
         """Save a conversation's runs. Returns True if the file changed.
 
         Normally the newly parsed runs replace the stored ones (the agent's file is the more complete record). If the
@@ -84,18 +90,24 @@ class Store:
         old = read_json(path, {}) or {}
         stored = {r["run_id"]: r for r in old.get("runs", [])}
         fresh = {r["run_id"]: r for r in runs}
-        if len(fresh) >= len(stored):
-            merged = fresh
-        else:
-            merged = {**stored, **fresh}
+        merged = fresh if len(fresh) >= len(stored) else {**stored, **fresh}
         new_runs = sorted(merged.values(), key=lambda r: (r.get("started", ""), r["run_id"]))
         if new_runs == old.get("runs"):
             return False
-        write_json(path, {"agent": agent, "conversation_id": conversation_id, "machine": self.machine,
-                          "source": source, "updated": now_iso(), "runs": new_runs})
+        write_json(
+            path,
+            {
+                "agent": agent,
+                "conversation_id": conversation_id,
+                "machine": self.machine,
+                "source": source,
+                "updated": now_iso(),
+                "runs": new_runs,
+            },
+        )
         return True
 
-    def upsert_commits(self, repo: str, commits: list[dict]) -> bool:
+    def upsert_commits(self, repo: str, commits: list[dict[str, Any]]) -> bool:
         path = os.path.join(self.base, "commits", slug(repo) + ".json")
         old = read_json(path, {}) or {}
         merged = {c["sha"]: c for c in old.get("commits", [])}
@@ -107,13 +119,15 @@ class Store:
         return True
 
     def write_manifest(self) -> None:
-        write_json(os.path.join(self.base, "manifest.json"),
-                   {"machine": self.machine, "hostname": socket.gethostname(), "version": __version__, "updated": now_iso()})
+        write_json(
+            os.path.join(self.base, "manifest.json"),
+            {"machine": self.machine, "hostname": socket.gethostname(), "version": __version__, "updated": now_iso()},
+        )
 
-    def sources(self) -> dict:
+    def sources(self) -> dict[str, Any]:
         return read_json(os.path.join(self.base, "sources.json"), {}) or {}
 
-    def save_sources(self, data: dict) -> None:
+    def save_sources(self, data: dict[str, Any]) -> None:
         write_json(os.path.join(self.base, "sources.json"), data)
 
     # ---------- reading ----------
@@ -127,7 +141,7 @@ class Store:
                     out.append(os.path.relpath(os.path.join(dirpath, n), self.root).replace(os.sep, "/"))
         return sorted(out)
 
-    def _load(self, rel: str):
+    def _load(self, rel: str) -> Any:
         path = os.path.join(self.root, rel)
         try:
             st = os.stat(path)
@@ -141,7 +155,7 @@ class Store:
         self._read_cache[rel] = (key, data)
         return data
 
-    def read_all(self) -> tuple[list[dict], list[dict], list[str]]:
+    def read_all(self) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[str]]:
         """(runs, commits, machines) across every machine in the store. Unchanged files come from memory."""
         runs, commits, machines = [], [], set()
         with self._lock:
@@ -162,7 +176,7 @@ class Store:
                         commits.append({**c, "machine": machine})
         seen, unique = set(), []
         for c in sorted(commits, key=lambda c: c.get("date", ""), reverse=True):
-            if c["sha"] not in seen:          # the same repository can be synced from two machines
+            if c["sha"] not in seen:  # the same repository can be synced from two machines
                 seen.add(c["sha"])
                 unique.append(c)
         return runs, unique, sorted(machines)

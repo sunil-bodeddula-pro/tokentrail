@@ -3,6 +3,7 @@
 A task run starts at each prompt from a person and lasts until the next one, so it measures what one request cost.
 Thresholds follow the dashboard guide in README.md section 3.
 """
+
 from __future__ import annotations
 
 import os
@@ -71,9 +72,9 @@ def build_runs(events: list[Event], pricing: Pricing) -> list[TaskRun]:
         current: TaskRun | None = None
         n = 0
         last_call, repeat = None, 0
-        model_counts: Counter = Counter()
+        model_counts: Counter[str] = Counter()
 
-        def finish(r: TaskRun | None):
+        def finish(r: TaskRun | None, model_counts: Counter[str]) -> None:
             if r is None or (r.steps == 0 and not r.prompt):
                 return
             r.models = [m for m, _ in model_counts.most_common()]
@@ -86,11 +87,19 @@ def build_runs(events: list[Event], pricing: Pricing) -> list[TaskRun]:
                 continue
             if e.kind == Kind.PROMPT or current is None:
                 if e.kind == Kind.PROMPT:
-                    finish(current)
+                    finish(current, model_counts)
                     current = None
                 n += 1
-                current = TaskRun(run_id=f"{conv}#{n}", conversation_id=conv, agent=e.agent, title=title,
-                                  cwd=e.cwd, workspace=workspace_of(e.cwd), started=e.ts, ended=e.ts)
+                current = TaskRun(
+                    run_id=f"{conv}#{n}",
+                    conversation_id=conv,
+                    agent=e.agent,
+                    title=title,
+                    cwd=e.cwd,
+                    workspace=workspace_of(e.cwd),
+                    started=e.ts,
+                    ended=e.ts,
+                )
                 model_counts = Counter()
                 last_call, repeat = None, 0
                 if e.kind == Kind.PROMPT:
@@ -114,7 +123,9 @@ def build_runs(events: list[Event], pricing: Pricing) -> list[TaskRun]:
                 r.thinking_tokens += e.thinking_tokens
                 if e.model:
                     model_counts[e.model] += 1
-                    c = pricing.cost(e.model, e.input_tokens, e.output_tokens, e.cache_read_tokens, e.cache_write_tokens)
+                    c = pricing.cost(
+                        e.model, e.input_tokens, e.output_tokens, e.cache_read_tokens, e.cache_write_tokens
+                    )
                     if c is None:
                         r.priced = False
                     else:
@@ -135,7 +146,7 @@ def build_runs(events: list[Event], pricing: Pricing) -> list[TaskRun]:
                 r.tool_output_chars += e.chars
                 if e.is_error:
                     r.tool_errors += 1
-        finish(current)
+        finish(current, model_counts)
     for r in runs:
         r.cost_usd = round(r.cost_usd, 6)
         r.cache_savings_usd = round(r.cache_savings_usd, 6)

@@ -4,6 +4,7 @@ Assistant responses are logged one content block per line, every line repeating 
 usage is taken once per message id (segment.build_runs de-duplicates). Tool results come back in user lines with an
 is_error flag. Lines marked isSidechain belong to subagents.
 """
+
 from __future__ import annotations
 
 import json
@@ -15,7 +16,7 @@ from .base import find_files, target_of
 SKIP_PROMPT_PREFIXES = ("<local-command", "[Request interrupted", "Caveat:", "<system-reminder>")
 
 
-def _text_of(content) -> str:
+def _text_of(content: object) -> str:
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -23,7 +24,7 @@ def _text_of(content) -> str:
     return ""
 
 
-def _result_chars(content) -> int:
+def _result_chars(content: object) -> int:
     if isinstance(content, str):
         return len(content)
     if isinstance(content, list):
@@ -67,13 +68,19 @@ class ClaudeCodeAdapter:
                     if model == "<synthetic>":
                         continue
                     u = msg.get("usage") or {}
-                    out.append(Event(Kind.RESPONSE, model=model, message_id=msg.get("id", "") or d.get("uuid", ""),
-                                     input_tokens=u.get("input_tokens", 0) or 0,
-                                     output_tokens=u.get("output_tokens", 0) or 0,
-                                     cache_read_tokens=u.get("cache_read_input_tokens", 0) or 0,
-                                     cache_write_tokens=u.get("cache_creation_input_tokens", 0) or 0,
-                                     thinking_tokens=(u.get("output_tokens_details") or {}).get("thinking_tokens", 0) or 0,
-                                     **base))
+                    out.append(
+                        Event(
+                            Kind.RESPONSE,
+                            model=model,
+                            message_id=msg.get("id", "") or d.get("uuid", ""),
+                            input_tokens=u.get("input_tokens", 0) or 0,
+                            output_tokens=u.get("output_tokens", 0) or 0,
+                            cache_read_tokens=u.get("cache_read_input_tokens", 0) or 0,
+                            cache_write_tokens=u.get("cache_creation_input_tokens", 0) or 0,
+                            thinking_tokens=(u.get("output_tokens_details") or {}).get("thinking_tokens", 0) or 0,
+                            **base,
+                        )
+                    )
                     for b in content if isinstance(content, list) else []:
                         if isinstance(b, dict) and b.get("type") == "tool_use":
                             inp = b.get("input") or {}
@@ -83,14 +90,32 @@ class ClaudeCodeAdapter:
                                 fp = str(inp.get("file_path", ""))
                                 if fp.endswith("/SKILL.md"):
                                     skill = fp.rstrip("/").split("/")[-2]
-                            out.append(Event(Kind.TOOL_CALL, tool=name, tool_id=b.get("id", ""), target=target_of(inp),
-                                             skill=skill, model=model, **base))
+                            out.append(
+                                Event(
+                                    Kind.TOOL_CALL,
+                                    tool=name,
+                                    tool_id=b.get("id", ""),
+                                    target=target_of(inp),
+                                    skill=skill,
+                                    model=model,
+                                    **base,
+                                )
+                            )
                 elif kind == "user":
-                    if isinstance(content, list) and any(isinstance(b, dict) and b.get("type") == "tool_result" for b in content):
+                    if isinstance(content, list) and any(
+                        isinstance(b, dict) and b.get("type") == "tool_result" for b in content
+                    ):
                         for b in content:
                             if isinstance(b, dict) and b.get("type") == "tool_result":
-                                out.append(Event(Kind.TOOL_RESULT, tool_id=b.get("tool_use_id", ""),
-                                                 is_error=bool(b.get("is_error")), chars=_result_chars(b.get("content")), **base))
+                                out.append(
+                                    Event(
+                                        Kind.TOOL_RESULT,
+                                        tool_id=b.get("tool_use_id", ""),
+                                        is_error=bool(b.get("is_error")),
+                                        chars=_result_chars(b.get("content")),
+                                        **base,
+                                    )
+                                )
                         continue
                     if d.get("isMeta") or d.get("isCompactSummary") or side:
                         continue

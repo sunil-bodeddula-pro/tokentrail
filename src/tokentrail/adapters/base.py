@@ -23,7 +23,7 @@ def find_files(root: str, pattern: str) -> list[str]:
     return sorted(glob.glob(os.path.join(root, pattern), recursive=True))
 
 
-def target_of(tool_input: dict) -> str:
+def target_of(tool_input: object) -> str:
     """The thing a tool acted on, used to spot loops (the same call on the same target again and again)."""
     if not isinstance(tool_input, dict):
         return ""

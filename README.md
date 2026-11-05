@@ -261,6 +261,7 @@ There are two ways, and neither touches the analytics.
 
    ```python
    from tokentrail.emit import EventLog
+
    log = EventLog(agent="My Agent")
    log.prompt("Refactor billing")
    log.response(model="my-model", input=1200, output=300)
@@ -304,6 +305,13 @@ Each value is `[input, output, cache_read, cache_write]` in US dollars per milli
 ```bash
 python3 -m unittest discover -s tests -v     # standard library only
 python3 -m pytest -v                         # also works, if pytest is installed
+```
+
+Lint, formatting and strict type checks, as CI runs them:
+
+```bash
+pip install -e '.[dev]'                      # ruff and mypy
+ruff check . && ruff format --check . && mypy
 ```
 
 The tests write fixtures to a temporary directory. They never read your real agent logs or touch the network: the GCS and S3 backends are tested against in-memory fakes.

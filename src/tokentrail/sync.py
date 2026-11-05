@@ -3,23 +3,39 @@
 Agent files are re-read only when their size or modification time changed, so a sync with nothing new takes
 milliseconds. Nothing in the store is removed when an agent file disappears.
 """
+
 from __future__ import annotations
 
 import os
 import threading
 import time
 from collections import defaultdict
+from typing import TYPE_CHECKING, Any
 
 from .git_collector import collect_commits
 from .pricing import Pricing
 from .segment import build_runs
 from .store import Store
 
+if TYPE_CHECKING:
+    from .adapters.base import Adapter
+    from .mirror import Mirror
+
 
 class Syncer:
-    def __init__(self, store: Store, adapters: list, pricing: Pricing, repos: list[str] | None = None,
-                 author_emails: list[str] | None = None, ai_tag: str | None = None, git_days: int = 365,
-                 git: bool = True, mirror=None, git_every: int = 300):
+    def __init__(
+        self,
+        store: Store,
+        adapters: list[Adapter],
+        pricing: Pricing,
+        repos: list[str] | None = None,
+        author_emails: list[str] | None = None,
+        ai_tag: str | None = None,
+        git_days: int = 365,
+        git: bool = True,
+        mirror: Mirror | None = None,
+        git_every: int = 300,
+    ) -> None:
         self.store = store
         self.adapters = adapters
         self.pricing = pricing
@@ -29,14 +45,14 @@ class Syncer:
         self.git_days = git_days
         self.git = git
         self.mirror = mirror
-        self.git_every = git_every            # git history changes slowly; re-read it every few minutes, not every sync
+        self.git_every = git_every  # git history changes slowly; re-read it every few minutes, not every sync
         self._git_at = float("-inf")
         self._git_cwds: set[str] = set()
         self._manifest_at = float("-inf")
         self._lock = threading.Lock()
-        self.last: dict = {}
+        self.last: dict[str, Any] = {}
 
-    def run(self) -> dict:
+    def run(self) -> dict[str, Any]:
         with self._lock:
             t0 = time.perf_counter()
             seen = self.store.sources()
@@ -80,7 +96,14 @@ class Syncer:
                 self.store.write_manifest()
                 self._manifest_at = time.monotonic()
             pushed = self.mirror.push() if self.mirror else None
-            self.last = {"at": time.strftime("%Y-%m-%dT%H:%M:%S%z"), "files": parsed + unchanged, "parsed": parsed,
-                         "unchanged": unchanged, "conversations_changed": changed_convs, "repos_changed": commits_changed,
-                         "pushed": pushed, "ms": round((time.perf_counter() - t0) * 1000, 1)}
+            self.last = {
+                "at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "files": parsed + unchanged,
+                "parsed": parsed,
+                "unchanged": unchanged,
+                "conversations_changed": changed_convs,
+                "repos_changed": commits_changed,
+                "pushed": pushed,
+                "ms": round((time.perf_counter() - t0) * 1000, 1),
+            }
             return self.last

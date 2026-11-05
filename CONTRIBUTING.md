@@ -34,6 +34,18 @@ An adapter turns one agent's log files into `Event`s. It's the only agent-specif
 
 `adapters/claude_code.py` is a complete example. If the agent can't be read directly, it can write the [generic event format](docs/event-format.md) instead, with no adapter at all.
 
+## Checks
+
+CI runs these on every pull request; run them locally first:
+
+```bash
+pip install -e '.[dev]'
+ruff check . && ruff format --check . && mypy
+python3 -m unittest discover -s tests -v
+```
+
+AI coding agents: read [AGENTS.md](AGENTS.md) (Claude Code loads it through `CLAUDE.md`).
+
 ## Pull requests
 
 - Run the tests on Python 3.12 or later.

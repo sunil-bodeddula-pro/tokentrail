@@ -2,10 +2,12 @@
 
 Defaults are Anthropic's first-party API list prices as published in its model documentation (cached 2026-10-06).
 Cache reads use the published rate where one is given, otherwise 10% of input; cache writes use 125% of input (the
-five-minute cache write rate). Prices change and differ by platform and plan: override any of them with a JSON file
-(the `pricing` setting) shaped like DEFAULT_PRICES. A model with no matching entry is reported as unpriced, never guessed.
+five-minute cache write rate). Prices change and differ by platform and plan: override any of them with a JSON
+file (the `pricing` setting) shaped like DEFAULT_PRICES. A model with no matching entry is reported as unpriced,
+never guessed.
 Matching is by prefix after lower-casing, so "claude-opus-5-5-20260101" matches "claude-opus-5-5".
 """
+
 from __future__ import annotations
 
 import hashlib
