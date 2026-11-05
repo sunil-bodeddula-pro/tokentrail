@@ -47,12 +47,15 @@ class FileBackend:
 
 
 class GCSBackend:
-    def __init__(self, bucket: str, prefix: str):
-        try:
-            from google.cloud import storage
-        except ImportError as exc:
-            raise SystemExit("gs:// needs the Google Cloud Storage client: pip install 'tokentrail[gcs]'") from exc
-        self.bucket = storage.Client().bucket(bucket)
+    def __init__(self, bucket: str, prefix: str, client=None):
+        if client is None:
+            try:
+                from google.cloud import storage
+            except ImportError as exc:
+                raise SystemExit("gs:// needs the Google Cloud Storage client: pip install 'tokentrail[gcs]'") from exc
+            client = storage.Client()
+        self.client = client
+        self.bucket = client.bucket(bucket)
         self.prefix = prefix.strip("/")
 
     def _key(self, rel: str) -> str:
@@ -61,7 +64,7 @@ class GCSBackend:
     def list(self, prefix: str) -> dict[str, str]:
         import base64
         out = {}
-        for blob in self.bucket.client.list_blobs(self.bucket, prefix=self._key(prefix)):
+        for blob in self.client.list_blobs(self.bucket, prefix=self._key(prefix)):
             rel = blob.name[len(self.prefix) + 1:] if self.prefix else blob.name
             out[rel] = base64.b64decode(blob.md5_hash).hex() if blob.md5_hash else ""
         return out
@@ -74,12 +77,14 @@ class GCSBackend:
 
 
 class S3Backend:
-    def __init__(self, bucket: str, prefix: str):
-        try:
-            import boto3
-        except ImportError as exc:
-            raise SystemExit("s3:// needs boto3: pip install 'tokentrail[s3]'") from exc
-        self.client = boto3.client("s3")
+    def __init__(self, bucket: str, prefix: str, client=None):
+        if client is None:
+            try:
+                import boto3
+            except ImportError as exc:
+                raise SystemExit("s3:// needs boto3: pip install 'tokentrail[s3]'") from exc
+            client = boto3.client("s3")                     # honours AWS_ENDPOINT_URL, AWS_PROFILE, AWS_REGION
+        self.client = client
         self.bucket = bucket
         self.prefix = prefix.strip("/")
 

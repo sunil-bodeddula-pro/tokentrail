@@ -10,6 +10,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = []
 
+[project.optional-dependencies]
+gcs = ["google-cloud-storage>=2.10"]
+s3 = ["boto3>=1.28"]
+all = ["google-cloud-storage>=2.10", "boto3>=1.28"]
+
 [project.scripts]
 tokentrail = "tokentrail.cli:main"
 

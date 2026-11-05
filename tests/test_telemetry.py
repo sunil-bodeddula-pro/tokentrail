@@ -201,6 +201,105 @@ class StoreSyncTest(unittest.TestCase):
             self.assertEqual(pulled[0]["prompt"], "")
 
 
+
+class FakeGCS:
+    """Just enough of google.cloud.storage.Client: bucket(), list_blobs(), blob().download/upload."""
+    def __init__(self):
+        self.objects = {}
+
+    def bucket(self, name):
+        client = self
+
+        class Blob:
+            def __init__(self, key):
+                self.name, self.key = key, key
+
+            @property
+            def md5_hash(self):
+                import base64, hashlib
+                return base64.b64encode(hashlib.md5(client.objects[self.key]).digest()).decode()
+
+            def download_as_bytes(self):
+                return client.objects[self.key]
+
+            def upload_from_string(self, data, content_type=None):
+                client.objects[self.key] = data
+
+        class Bucket:
+            def blob(self, key):
+                return Blob(key)
+        return Bucket()
+
+    def list_blobs(self, bucket, prefix=""):
+        return [bucket.blob(k) for k in sorted(self.objects) if k.startswith(prefix)]
+
+
+class FakeS3:
+    """Just enough of a boto3 S3 client: put_object, get_object, list_objects_v2 paginator."""
+    def __init__(self):
+        self.objects = {}
+
+    def put_object(self, Bucket, Key, Body, ContentType=None):
+        self.objects[(Bucket, Key)] = Body
+
+    def get_object(self, Bucket, Key):
+        import io
+        return {"Body": io.BytesIO(self.objects[(Bucket, Key)])}
+
+    def get_paginator(self, name):
+        import hashlib
+        fake = self
+
+        class Pager:
+            def paginate(self, Bucket, Prefix):
+                keys = [k for b, k in sorted(fake.objects) if b == Bucket and k.startswith(Prefix)]
+                for i in range(0, len(keys), 2):                    # two per page, to exercise paging
+                    yield {"Contents": [{"Key": k, "ETag": '"%s"' % hashlib.md5(fake.objects[(Bucket, k)]).hexdigest()}
+                                        for k in keys[i:i + 2]]}
+        return Pager()
+
+
+class CloudBackendTest(unittest.TestCase):
+    def round_trip(self, make_backend):
+        from tokentrail.mirror import Mirror
+        from tokentrail.store import Store
+        from tokentrail.sync import Syncer
+        with tempfile.TemporaryDirectory() as d:
+            write_jsonl(os.path.join(d, "claude", "proj", "s1.jsonl"), claude_transcript())
+            store = Store(os.path.join(d, "store"), "m1")
+            mirror = Mirror(store, "x://", backend=make_backend())
+            syncer = Syncer(store, [ClaudeCodeAdapter(os.path.join(d, "claude"))], Pricing(), git=False, mirror=mirror)
+            self.assertGreaterEqual(syncer.run()["pushed"], 1)
+            self.assertEqual(mirror.push(), 0)                       # nothing changed, nothing re-sent
+            other = Store(os.path.join(d, "other"), "m2")
+            backend = mirror.backend
+            self.assertGreaterEqual(Mirror(other, "x://", backend=backend).pull(), 1)
+            self.assertEqual(Mirror(other, "x://", backend=backend).pull(), 0)   # unchanged on the second pull
+            pulled, _, machines = other.read_all()
+            self.assertEqual((len(pulled), machines), (2, ["m1"]))
+            self.assertTrue(all(r["prompt"] == "" and r["redacted"] for r in pulled))
+
+    def test_gcs_with_prefix(self):
+        from tokentrail.mirror import GCSBackend
+        fake = FakeGCS()
+        self.round_trip(lambda: GCSBackend("b", "team/tt/", client=fake))
+        self.assertTrue(all(k.startswith("team/tt/v1/m1/") for k in fake.objects))
+
+    def test_s3_without_prefix(self):
+        from tokentrail.mirror import S3Backend
+        fake = FakeS3()
+        self.round_trip(lambda: S3Backend("b", "", client=fake))
+        self.assertTrue(all(k.startswith("v1/m1/") for _, k in fake.objects))
+
+    def test_missing_addon_message(self):
+        import importlib.util
+        from tokentrail.mirror import backend_for
+        if importlib.util.find_spec("boto3"):
+            self.skipTest("boto3 installed")
+        with self.assertRaises(SystemExit) as ctx:
+            backend_for("s3://bucket/x")
+        self.assertIn("tokentrail[s3]", str(ctx.exception))
+
 class CliTest(unittest.TestCase):
     def test_sync_summary_export(self):
         with tempfile.TemporaryDirectory() as d:
