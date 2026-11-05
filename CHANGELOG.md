@@ -4,6 +4,8 @@ All notable changes to TokenTrail. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-11-05
+
 ### Changed
 
 - The session explorer is paginated: First, Prev, page numbers, Next and Last, with 10, 25, 50 or 100 rows per page. This replaces the Show more button.
@@ -22,5 +24,6 @@ First public release.
 - `examples/demo_data.py` writes a month of made-up sessions, so you can try the dashboard without an agent.
 - No runtime dependencies. The `gcs` and `s3` extras add the cloud mirror clients.
 
-[Unreleased]: https://github.com/sunil-bodeddula-pro/tokentrail/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sunil-bodeddula-pro/tokentrail/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/sunil-bodeddula-pro/tokentrail/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/sunil-bodeddula-pro/tokentrail/releases/tag/v0.1.0
