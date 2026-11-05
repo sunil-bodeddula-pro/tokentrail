@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "agent-observability"
+name = "tokentrail"
 version = "0.1.0"
 description = "Local telemetry and dashboard for AI coding agents: tokens, tools, skills, health and shipped code."
 readme = "README.md"
@@ -11,10 +11,10 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.scripts]
-agent-observability = "agent_observability.cli:main"
+tokentrail = "tokentrail.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-agent_observability = ["static/*.html"]
+tokentrail = ["static/*.html"]

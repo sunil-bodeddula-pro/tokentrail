@@ -1,6 +1,6 @@
-# Agent Observability
+# TokenTrail
 
-**Agent Observability** (`agent_observability`) is a zero-dependency Python 3.12+ telemetry collector, analytics engine, CLI and local web dashboard for AI coding agents. It reads your agents' local session logs and the git history of the repositories they worked in. It shows how your agents reason, spend tokens, call tools and load skills, and how that spend turns into shipped code.
+**TokenTrail** (`tokentrail`) is a zero-dependency Python 3.12+ telemetry collector, analytics engine, CLI and local web dashboard for AI coding agents. It reads your agents' local session logs and the git history of the repositories they worked in. It shows how your agents reason, spend tokens, call tools and load skills, and how that spend turns into shipped code.
 
 It works with any agent:
 - **Claude Code** is read out of the box.
@@ -29,24 +29,24 @@ Run from the project root:
 
 ```bash
 # Live dashboard on http://127.0.0.1:8765, re-scanning every 30 s
-PYTHONPATH=src python3 -m agent_observability.cli --port 8765 --sync-interval 30
+PYTHONPATH=src python3 -m tokentrail.cli --port 8765 --sync-interval 30
 
 # Terminal summary for the last 30 days
-PYTHONPATH=src python3 -m agent_observability.cli --summary --days 30
+PYTHONPATH=src python3 -m tokentrail.cli --summary --days 30
 
 # Export aggregated telemetry (JSON) or one row per task run (CSV)
-PYTHONPATH=src python3 -m agent_observability.cli --export-json /tmp/agents.json --days 180
-PYTHONPATH=src python3 -m agent_observability.cli --export-csv /tmp/agent_runs.csv --days 180
+PYTHONPATH=src python3 -m tokentrail.cli --export-json /tmp/agents.json --days 180
+PYTHONPATH=src python3 -m tokentrail.cli --export-csv /tmp/agent_runs.csv --days 180
 ```
 
-To get an `agent-observability` command instead, run `pip install -e .`. It installs nothing else.
+To get an `tokentrail` command instead, run `pip install -e .`. It installs nothing else.
 
 | Option | Default | Meaning |
 | :--- | :--- | :--- |
 | `--days N` | 180 | How far back to read (0 = everything) |
 | `--adapters` | `claude-code,generic` | Which sources to read |
 | `--claude-dir` | `~/.claude/projects` | Claude Code transcripts |
-| `--events-dir` | `~/.agent-observability/events` | Generic events from any agent |
+| `--events-dir` | `~/.tokentrail/events` | Generic events from any agent |
 | `--pricing FILE` | built-in table | Override prices per model (section 6) |
 | `--repo PATH` | (none) | Extra git repository to include; repeatable |
 | `--author-email E` | your `git config user.email` | Count commits by this email as yours; repeatable |
@@ -72,13 +72,13 @@ git repos  ──▶ git_collector ──▶ Commit records ──────�
 | Source | Default path | What's extracted |
 | :--- | :--- | :--- |
 | Claude Code | `~/.claude/projects/<project>/<session>.jsonl` | Prompts, per-response token usage (input, output, cache read and write, reasoning), model, tool calls and their errors, skills (`Skill` tool, or reads of `*/skills/<name>/SKILL.md`), subagent steps, working directory, title |
-| Generic events | `~/.agent-observability/events/**/*.jsonl` | The same fields, written by any agent ([format](docs/event-format.md)) |
+| Generic events | `~/.tokentrail/events/**/*.jsonl` | The same fields, written by any agent ([format](docs/event-format.md)) |
 | Git history | Repositories found from the sessions' working directories, plus `--repo` | Conventional commit type and scope, linked issues (`#123`, `ABC-123`, `b/123`), your commits, and AI-credited commits (`Co-Authored-By: Claude / Copilot / Gemini / Cursor / Codex…`, or `--ai-tag`) |
 
 ### Incremental auto-sync
 
 - **Parse cache:** each log file is cached by size and nanosecond modification time. A sync re-parses only files that changed, so a quiet sync takes milliseconds.
-- **Disk cache:** the cache is saved to `~/.cache/agent-observability/runs.json`, so restarting is fast too. Changing prices invalidates it automatically.
+- **Disk cache:** the cache is saved to `~/.cache/tokentrail/runs.json`, so restarting is fast too. Changing prices invalidates it automatically.
 - **Two refresh loops:**
   - The server's background thread refreshes its snapshot every `--sync-interval` seconds.
   - The browser polls `/api/telemetry` at the interval you choose (15 s, 30 s, 60 s, 5 min or off), and also when you switch back to the tab.
@@ -91,7 +91,7 @@ git repos  ──▶ git_collector ──▶ Commit records ──────�
 ### 3.1 Top bar
 
 - **Mode tabs:**
-  - **Agent Observability:** sessions, tokens, models, skills and tool friction.
+  - **TokenTrail:** sessions, tokens, models, skills and tool friction.
   - **Code Deliverables:** your local git commits.
   - **Cross-Domain ROI:** agent spend set against commits shipped.
 - **Auto-sync and Sync now:** how often the page refreshes, the time of the last sync, and a manual re-scan button.
@@ -187,7 +187,7 @@ There are two ways, and neither touches the analytics.
 1. **Write generic events** from the agent, a wrapper or a log converter. See [docs/event-format.md](docs/event-format.md). From Python:
 
    ```python
-   from agent_observability.emit import EventLog
+   from tokentrail.emit import EventLog
    log = EventLog(agent="My Agent")
    log.prompt("Refactor billing")
    log.response(model="my-model", input=1200, output=300)
@@ -195,7 +195,7 @@ There are two ways, and neither touches the analytics.
    log.tool_result(error=False, chars=420)
    ```
 
-2. **Write an adapter** in `src/agent_observability/adapters/`: a class with `name`, `sources()` (files to read) and `events(path)` (a list of `Event`). Register it in `ADAPTERS`, and add a branch to `make_adapters` in `cli.py`. `claude_code.py` is a complete example in about 100 lines.
+2. **Write an adapter** in `src/tokentrail/adapters/`: a class with `name`, `sources()` (files to read) and `events(path)` (a list of `Event`). Register it in `ADAPTERS`, and add a branch to `make_adapters` in `cli.py`. `claude_code.py` is a complete example in about 100 lines.
 
 ---
 
@@ -218,7 +218,7 @@ Each value is `[input, output, cache_read, cache_write]` in US dollars per milli
 
 ## 7. Co-located agent skill
 
-`skills/agent-observability/` is an agent skill. Copy or link it into your agent's skills folder so the agent can run the tool and interpret it for you.
+`skills/tokentrail/` is an agent skill. Copy or link it into your agent's skills folder so the agent can run the tool and interpret it for you.
 
 - `SKILL.md`: when to use it, the commands, and how to act on the signals.
 - `references/telemetry_schema.md`: the `TaskRun` and `Commit` fields, the health rules, and the HTTP API.

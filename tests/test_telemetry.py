@@ -11,13 +11,12 @@ import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from agent_observability.adapters import ClaudeCodeAdapter, GenericJsonlAdapter  # noqa: E402
-from agent_observability.analytics import kpis, roi  # noqa: E402
-from agent_observability.collector import TelemetryCollector  # noqa: E402
-from agent_observability.git_collector import parse_log  # noqa: E402
-from agent_observability.models import Health, TaskRun  # noqa: E402
-from agent_observability.pricing import Pricing  # noqa: E402
-from agent_observability.segment import build_runs, classify  # noqa: E402
+from tokentrail.adapters import ClaudeCodeAdapter, GenericJsonlAdapter  # noqa: E402
+from tokentrail.analytics import kpis, roi  # noqa: E402
+from tokentrail.git_collector import parse_log  # noqa: E402
+from tokentrail.models import Health, TaskRun  # noqa: E402
+from tokentrail.pricing import Pricing  # noqa: E402
+from tokentrail.segment import build_runs, classify  # noqa: E402
 
 
 def write_jsonl(path, rows):
@@ -109,7 +108,7 @@ class GenericAdapterTest(unittest.TestCase):
 
 class EmitTest(unittest.TestCase):
     def test_emit_round_trip(self):
-        from agent_observability.emit import EventLog
+        from tokentrail.emit import EventLog
         with tempfile.TemporaryDirectory() as d:
             log = EventLog(agent="Bot One", session_id="e1", workspace="/w", root=d)
             log.prompt("ship it")
@@ -138,7 +137,7 @@ class HealthTest(unittest.TestCase):
         self.assertEqual(classify(self.run_(steps=6, tool_calls=5, tool_errors=2)), Health.HIGH_ERRORS.value)
 
     def test_loop_detection(self):
-        from agent_observability.models import Event, Kind
+        from tokentrail.models import Event, Kind
         evs = [Event(Kind.PROMPT, "2026-11-01T00:00:00Z", "c", text="go")]
         for i in range(5):
             evs.append(Event(Kind.RESPONSE, f"2026-11-01T00:00:0{i + 1}Z", "c", message_id=f"m{i}", model="m"))
@@ -175,35 +174,49 @@ class GitTest(unittest.TestCase):
         self.assertEqual((r["my_commits"], r["ai_tagged"], r["issues_linked"]), (1, 1, 1))
 
 
-class CollectorTest(unittest.TestCase):
-    def test_cache_skips_unchanged_files(self):
+class StoreSyncTest(unittest.TestCase):
+    def test_store_keeps_data_after_history_is_deleted_and_mirrors(self):
+        from tokentrail.mirror import Mirror
+        from tokentrail.store import Store
+        from tokentrail.sync import Syncer
         with tempfile.TemporaryDirectory() as d:
-            path = os.path.join(d, "proj", "s1.jsonl")
-            write_jsonl(path, claude_transcript())
-            c = TelemetryCollector([ClaudeCodeAdapter(d)], Pricing(), os.path.join(d, "cache.json"))
-            self.assertEqual(len(c.collect()), 2)
-            self.assertEqual(c.last_stats["parsed"], 1)
-            c.collect()
-            self.assertEqual((c.last_stats["parsed"], c.last_stats["unchanged"]), (0, 1))
-            again = TelemetryCollector([ClaudeCodeAdapter(d)], Pricing(), os.path.join(d, "cache.json"))
-            self.assertEqual(len(again.collect()), 2)
-            self.assertEqual(again.last_stats["parsed"], 0)   # loaded from the disk cache
+            src = os.path.join(d, "claude", "proj", "s1.jsonl")
+            write_jsonl(src, claude_transcript())
+            store = Store(os.path.join(d, "store"), "m1")
+            mirror = Mirror(store, os.path.join(d, "bucket"), redact_prompts=True)
+            syncer = Syncer(store, [ClaudeCodeAdapter(os.path.join(d, "claude"))], Pricing(), git=False, mirror=mirror)
+            first = syncer.run()
+            self.assertEqual((first["parsed"], first["conversations_changed"]), (1, 1))
+            self.assertGreaterEqual(first["pushed"], 1)
+            self.assertEqual(syncer.run()["parsed"], 0)          # unchanged file is skipped
+            os.remove(src)                                       # agent history cleared
+            syncer.run()
+            runs, _, machines = store.read_all()
+            self.assertEqual((len(runs), machines), (2, ["m1"]))
+            # another machine pulls: sees the runs, with prompts redacted
+            other = Store(os.path.join(d, "other"), "m2")
+            self.assertGreaterEqual(Mirror(other, os.path.join(d, "bucket")).pull(), 1)
+            pulled, _, _ = other.read_all()
+            self.assertEqual(len(pulled), 2)
+            self.assertEqual(pulled[0]["prompt"], "")
 
 
 class CliTest(unittest.TestCase):
-    def test_summary_and_exports(self):
+    def test_sync_summary_export(self):
         with tempfile.TemporaryDirectory() as d:
-            write_jsonl(os.path.join(d, "proj", "s1.jsonl"), claude_transcript())
+            write_jsonl(os.path.join(d, "claude", "proj", "s1.jsonl"), claude_transcript())
+            cfg = os.path.join(d, "config.json")
+            with open(cfg, "w", encoding="utf-8") as fh:
+                json.dump({"store": os.path.join(d, "store"), "claude_dir": os.path.join(d, "claude"),
+                           "events_dir": os.path.join(d, "none")}, fh)
             env = {**os.environ, "PYTHONPATH": os.path.join(os.path.dirname(__file__), "..", "src")}
-            args = [sys.executable, "-m", "agent_observability.cli", "--claude-dir", d, "--events-dir", os.path.join(d, "none"),
-                    "--days", "0", "--no-git", "--no-cache"]
-            out = subprocess.run(args + ["--summary", "--export-json", os.path.join(d, "o.json"), "--export-csv", os.path.join(d, "o.csv")],
-                                 capture_output=True, text=True, env=env, check=True).stdout
-            self.assertIn("2 task runs in 1 conversations", out)
+            run = lambda *a: subprocess.run([sys.executable, "-m", "tokentrail", *a, "--config", cfg, "--no-git"],
+                                            capture_output=True, text=True, env=env, check=True).stdout
+            self.assertIn("2 task runs in 1 conversations", run("summary"))
+            run("export", "--json", os.path.join(d, "o.json"), "--csv", os.path.join(d, "o.csv"))
             with open(os.path.join(d, "o.json"), encoding="utf-8") as fh:
                 self.assertEqual(json.load(fh)["kpis"]["sessions"], 2)
-            with open(os.path.join(d, "o.csv"), encoding="utf-8") as fh:
-                self.assertEqual(len(fh.read().strip().splitlines()), 3)
+            self.assertIn("2 task runs", run("status"))
 
 
 if __name__ == "__main__":

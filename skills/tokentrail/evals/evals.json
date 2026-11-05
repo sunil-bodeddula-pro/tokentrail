@@ -1,5 +1,5 @@
 {
-  "skill": "agent-observability",
+  "skill": "tokentrail",
   "trigger": [
     {"prompt": "How efficient have my agent sessions been this month?", "should_trigger": true},
     {"prompt": "Why are my Claude Code sessions so expensive?", "should_trigger": true},

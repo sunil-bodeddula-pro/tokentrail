@@ -1,8 +1,8 @@
 """Local HTTP server: the dashboard page and a small JSON API.
 
     GET  /                 the dashboard
-    GET  /api/telemetry    the latest snapshot (runs, commits, sync stats)
-    POST /api/sync         re-scan now and return the new snapshot
+    GET  /api/telemetry    everything in the store (runs, commits, machines, last sync)
+    POST /api/sync         sync now (read agent files, push to the remote) and return the new snapshot
     GET  /api/health       {"ok": true}
 
 It binds to 127.0.0.1 by default: the data includes your prompts, so don't expose it on a network.
@@ -54,7 +54,8 @@ def make_handler(state: TelemetryState):
 
         def do_POST(self):
             if self.path.split("?")[0] == "/api/sync":
-                self._json(state.sync())
+                state.sync()
+                self._json(state.snapshot())
             else:
                 self._json({"error": "not found"}, 404)
 

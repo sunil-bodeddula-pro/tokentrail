@@ -1,13 +1,13 @@
 """Write generic events from your own agent or wrapper, so the dashboard picks it up with no adapter.
 
-    from agent_observability.emit import EventLog
+    from tokentrail.emit import EventLog
     log = EventLog(agent="My Agent", session_id="2026-11-04-a")
     log.prompt("Refactor the billing module")
     log.response(model="gpt-x", input=1200, output=300, cache_read=8000)
     log.tool_call("edit_file", target="billing.py")
     log.tool_result(error=False, chars=420)
 
-Events append to ~/.agent-observability/events/<agent>/<session_id>.jsonl. Field reference: docs/event-format.md.
+Events append to ~/.tokentrail/events/<agent>/<session_id>.jsonl. Field reference: docs/event-format.md.
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 
 class EventLog:
     def __init__(self, agent: str, session_id: str | None = None, workspace: str | None = None,
-                 root: str = "~/.agent-observability/events"):
+                 root: str = "~/.tokentrail/events"):
         self.agent = agent
         self.session_id = session_id or uuid.uuid4().hex[:12]
         self.workspace = workspace or os.getcwd()

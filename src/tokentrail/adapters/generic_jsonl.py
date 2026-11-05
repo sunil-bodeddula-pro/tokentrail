@@ -1,6 +1,6 @@
 """The generic event format: any agent, wrapper or script can write it, and the dashboard reads it with no code changes.
 
-One JSON object per line, in *.jsonl files under ~/.agent-observability/events/ (or a directory you pass with
+One JSON object per line, in *.jsonl files under ~/.tokentrail/events/ (or a directory you pass with
 --events-dir). Field reference: docs/event-format.md.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ KINDS = {k.value: k for k in Kind}
 class GenericJsonlAdapter:
     name = "Generic"
 
-    def __init__(self, root: str = "~/.agent-observability/events"):
+    def __init__(self, root: str = "~/.tokentrail/events"):
         self.root = root
 
     def sources(self) -> list[str]:

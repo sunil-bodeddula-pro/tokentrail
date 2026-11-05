@@ -2,9 +2,9 @@
 
 Any agent can appear in the dashboard by writing this format. No code changes to the tool are needed.
 
-- **Where:** `*.jsonl` files under `~/.agent-observability/events/`, any depth (change it with `--events-dir`). One file per session is simplest; never split one session across files.
+- **Where:** `*.jsonl` files under `~/.tokentrail/events/`, any depth (change it with `--events-dir`). One file per session is simplest; never split one session across files.
 - **What:** one JSON object per line, in time order. Unknown fields are ignored. Lines with an unknown `event` or no `session_id` are skipped.
-- **From Python:** `agent_observability.emit.EventLog` writes it for you.
+- **From Python:** `tokentrail.emit.EventLog` writes it for you.
 
 ## Fields
 
