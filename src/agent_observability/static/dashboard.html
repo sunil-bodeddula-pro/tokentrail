@@ -1,0 +1,459 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Observability</title>
+<style>
+:root, [data-theme="dark"] {
+  --bg: #0f1419; --panel: #172029; --panel-2: #1e2a35; --line: #2a3a48; --ink: #e6edf3; --ink-2: #a8b6c3; --ink-3: #7a8a99;
+  --accent: #38bdf8; --accent-2: #a78bfa; --good: #34d399; --warn: #fbbf24; --bad: #f87171; --orange: #fb923c; --pink: #f472b6;
+  --shadow: 0 1px 2px rgba(0,0,0,.4);
+}
+[data-theme="light"] {
+  --bg: #f6f8fa; --panel: #ffffff; --panel-2: #f0f3f6; --line: #d4dbe2; --ink: #1b2430; --ink-2: #44515e; --ink-3: #66727e;
+  --accent: #0369a1; --accent-2: #6d28d9; --good: #047857; --warn: #b45309; --bad: #b91c1c; --orange: #c2410c; --pink: #be185d;
+  --shadow: 0 1px 2px rgba(0,0,0,.08);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+button, select, input { font: inherit; color: inherit; }
+header { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header h1 { margin: 0; font-size: 16px; white-space: nowrap; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; justify-content: center; }
+.tab { border: 1px solid var(--line); background: var(--panel-2); padding: 5px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.tab[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.tab .n { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--line); }
+.sync { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); display: inline-block; }
+.dot.on { background: var(--good); box-shadow: 0 0 6px var(--good); }
+.btn { border: 1px solid var(--line); background: var(--panel-2); padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.btn:hover { border-color: var(--accent); }
+select, input[type=search], input[type=date] { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
+main { padding: 16px 18px 40px; max-width: 1500px; margin: 0 auto; }
+.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 14px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel-2); padding: 5px 10px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); font-weight: 600; }
+.filters input[type=search] { min-width: 220px; flex: 1; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
+.kpi .l { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.kpi .v { font-size: 26px; font-weight: 700; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: 12px; color: var(--ink-2); }
+.kpi.good .v { color: var(--good); } .kpi.warn .v { color: var(--warn); } .kpi.bad .v { color: var(--bad); }
+.subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0; }
+.card.wide { grid-column: 1 / -1; }
+.card h3 { margin: 0 0 2px; font-size: 14px; }
+.card .sub { margin: 0 0 8px; font-size: 12px; color: var(--ink-3); }
+.card .foot { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
+.banner { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+svg { display: block; max-width: 100%; }
+svg text { fill: var(--ink-2); font-size: 11px; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.donutwrap { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr { cursor: pointer; } tbody tr:hover { background: var(--panel-2); }
+.tablewrap { overflow-x: auto; max-height: 640px; overflow-y: auto; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.prompt { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--ink-3); }
+.empty { padding: 30px; text-align: center; color: var(--ink-3); }
+dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; max-width: 760px; width: calc(100% - 32px); padding: 18px 20px; }
+dialog::backdrop { background: rgba(0,0,0,.55); }
+dialog h2 { margin: 0 0 4px; font-size: 16px; }
+dialog dl { display: grid; grid-template-columns: 160px 1fr; gap: 6px 12px; margin: 12px 0; font-size: 13px; }
+dialog dt { color: var(--ink-3); } dialog dd { margin: 0; word-break: break-word; }
+dialog pre { white-space: pre-wrap; background: var(--panel-2); padding: 10px; border-radius: 8px; font-size: 12px; max-height: 200px; overflow: auto; }
+.hide { display: none !important; }
+a { color: var(--accent); }
+@media (max-width: 700px) { header { padding: 10px 12px; position: static; } .tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; } .filters input[type=search] { flex-basis: 100%; } main { padding: 12px; } .charts { grid-template-columns: 1fr; } .donutwrap { grid-template-columns: 1fr; } dialog dl { grid-template-columns: 1fr; } .filters input[type=search] { min-width: 0; width: 100%; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Agent Observability</h1>
+  <nav class="tabs" id="modes">
+    <button class="tab" data-mode="agents" aria-pressed="true">Agent Observability <span class="n" id="n-agents">0</span></button>
+    <button class="tab" data-mode="code" aria-pressed="false">Code Deliverables <span class="n" id="n-code">0</span></button>
+    <button class="tab" data-mode="roi" aria-pressed="false">Cross-Domain ROI <span class="n">Live</span></button>
+  </nav>
+  <div class="sync">
+    <span class="dot" id="sync-dot"></span>
+    <label>Auto-sync <select id="sync-every"><option value="15">15s</option><option value="30" selected>30s</option><option value="60">60s</option><option value="300">5m</option><option value="0">Off</option></select></label>
+    <span id="synced">Not synced</span>
+    <button class="btn" id="sync-now" title="Re-scan agent logs now">↻ Sync now</button>
+    <button class="btn" id="theme" title="Toggle light and dark">☀</button>
+  </div>
+</header>
+<main>
+  <section class="filters" aria-label="Filters">
+    <span class="seg" id="win">
+      <button data-days="1">Today</button><button data-days="7">Last 7 days</button><button data-days="30" aria-pressed="true">Last 30 days</button><button data-days="0">All</button>
+    </span>
+    <label class="muted">From <input type="date" id="from"></label>
+    <label class="muted">To <input type="date" id="to"></label>
+    <span class="seg" id="gran"><button data-g="runs" aria-pressed="true">Task runs</button><button data-g="convs">Conversations</button></span>
+    <input type="search" id="q" placeholder="Search prompts, models, repos, skills, tools…" aria-label="Search">
+    <select id="f-agent" aria-label="Agent"></select>
+    <select id="f-model" aria-label="Model"></select>
+    <select id="f-health" aria-label="Health outcome"></select>
+  </section>
+
+  <!-- AGENTS -->
+  <section id="mode-agents">
+    <div class="kpis" id="kpis"></div>
+    <div class="subtabs" id="ctabs"></div>
+    <div class="charts" id="charts"></div>
+    <div class="card">
+      <h3>Session explorer</h3>
+      <p class="sub">Click a row for the full breakdown. Click a column to sort.</p>
+      <div class="tablewrap"><table id="runs"><thead></thead><tbody></tbody></table></div>
+      <p class="foot" id="runs-foot"></p>
+    </div>
+  </section>
+
+  <!-- CODE -->
+  <section id="mode-code" class="hide">
+    <div class="kpis" id="ckpis"></div>
+    <div class="charts" id="ccharts"></div>
+    <div class="card"><h3>Recent commits</h3><div class="tablewrap"><table id="commits"><thead></thead><tbody></tbody></table></div></div>
+  </section>
+
+  <!-- ROI -->
+  <section id="mode-roi" class="hide">
+    <div class="kpis" id="rkpis"></div>
+    <div class="charts" id="rcharts"></div>
+  </section>
+</main>
+
+<dialog id="inspect"><div id="inspect-body"></div><p style="text-align:right;margin:0"><button class="btn" id="inspect-close">Close</button></p></dialog>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const fmt = (n) => (n ?? 0).toLocaleString("en-US");
+  const short = (n) => n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : String(Math.round(n || 0));
+  const money = (n) => "$" + (n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct = (a, b) => (b ? (100 * a) / b : 0);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+  const PALETTE = ["--accent", "--accent-2", "--good", "--warn", "--orange", "--pink", "--bad", "--ink-3"];
+  const color = (i) => css(PALETTE[i % PALETTE.length]);
+  const H = { HV: "High-Velocity (<=30 steps)", POS: "Positive (Standard)", LOOP: "Friction: Tool Loops", WANDER: "Wandering: Zero File Writes", ERR: "Failure: High Error Rate" };
+  const HEALTH_COLOR = { [H.HV]: "--good", [H.POS]: "--accent", [H.LOOP]: "--warn", [H.WANDER]: "--orange", [H.ERR]: "--bad" };
+  const HEALTHY = new Set([H.HV, H.POS]);
+  const isWrite = (t) => /(^|_)(write|edit|multiedit|replace|create_file|apply_patch|str_replace|notebookedit)/i.test(t);
+
+  const state = { data: null, mode: "agents", days: 30, from: "", to: "", gran: "runs", q: "", agent: "", model: "", health: "", chartTab: "all", sort: { key: "started", dir: -1 }, limit: 100, timer: null };
+
+  /* ---------- health: same thresholds as segment.py ---------- */
+  function classify(r) {
+    const steps = Math.max(r.steps, 1), rate = r.tool_errors / Math.max(r.tool_calls, steps);
+    if (r.tool_errors >= 4 || (r.steps >= 6 && rate >= 0.2)) return H.ERR;
+    if (r.max_repeat >= 4) return H.LOOP;
+    if (r.steps > 45 && r.file_writes === 0 && !r.skills.length) return H.WANDER;
+    if (r.steps <= 30 && r.tool_errors === 0) return H.HV;
+    return H.POS;
+  }
+
+  /* ---------- filtering and granularity ---------- */
+  function inWindow(ts) {
+    if (!ts) return false;
+    const d = ts.slice(0, 10);
+    if (state.from && d < state.from) return false;
+    if (state.to && d > state.to) return false;
+    if (!state.from && !state.to && state.days) {
+      const t = Date.parse(ts);
+      if (state.days === 1) return new Date(t).toDateString() === new Date().toDateString();
+      return Date.now() - t <= state.days * 86400000;
+    }
+    return true;
+  }
+  function toConversations(runs) {
+    const by = new Map();
+    for (const r of runs) {
+      let c = by.get(r.conversation_id);
+      if (!c) { c = { ...r, run_id: r.conversation_id, tools: {}, skills: [], models: [], steps: 0, input_tokens: 0, output_tokens: 0, cache_read_tokens: 0, cache_write_tokens: 0, thinking_tokens: 0, prompt_chars: 0, tool_output_chars: 0, tool_calls: 0, tool_errors: 0, file_writes: 0, subagent_steps: 0, max_repeat: 0, cost_usd: 0, cache_savings_usd: 0, runs: 0, _mc: {} }; by.set(r.conversation_id, c); }
+      for (const k of ["steps", "input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "thinking_tokens", "prompt_chars", "tool_output_chars", "tool_calls", "tool_errors", "file_writes", "subagent_steps", "cost_usd", "cache_savings_usd"]) c[k] += r[k] || 0;
+      c.max_repeat = Math.max(c.max_repeat, r.max_repeat); c.runs++;
+      for (const [t, n] of Object.entries(r.tools)) c.tools[t] = (c.tools[t] || 0) + n;
+      for (const s of r.skills) if (!c.skills.includes(s)) c.skills.push(s);
+      if (r.steps) c._mc[r.model] = (c._mc[r.model] || 0) + r.steps;
+      if (r.started < c.started) { c.started = r.started; c.prompt = r.prompt; }
+      if (r.ended > c.ended) c.ended = r.ended;
+      c.priced = c.priced && r.priced;
+    }
+    return [...by.values()].map((c) => { c.models = Object.keys(c._mc).sort((a, b) => c._mc[b] - c._mc[a]); c.model = c.models[0] || "no response"; c.health = classify(c); return c; });
+  }
+  function filtered() {
+    if (!state.data) return [];
+    let runs = state.data.runs.filter((r) => inWindow(r.started));
+    if (state.agent) runs = runs.filter((r) => r.agent === state.agent);
+    if (state.gran === "convs") runs = toConversations(runs);
+    if (state.model) runs = runs.filter((r) => r.model === state.model);
+    if (state.health) runs = runs.filter((r) => r.health === state.health);
+    if (state.q) {
+      const q = state.q.toLowerCase();
+      runs = runs.filter((r) => [r.run_id, r.prompt, r.title, r.model, r.workspace, r.agent, r.skills.join(" "), Object.keys(r.tools).join(" ")].join(" ").toLowerCase().includes(q));
+    }
+    return runs;
+  }
+  function filteredCommits() {
+    if (!state.data) return [];
+    const q = state.q.toLowerCase();
+    return state.data.commits.filter((c) => inWindow(c.date) && (!q || [c.subject, c.repo, c.author, c.type, c.scope, c.issues.join(" ")].join(" ").toLowerCase().includes(q)));
+  }
+
+  /* ---------- KPIs: same definitions as analytics.kpis ---------- */
+  function kpis(runs) {
+    const n = runs.length, sum = (k) => runs.reduce((a, r) => a + (r[k] || 0), 0);
+    const inp = sum("input_tokens") + sum("cache_write_tokens"), out = sum("output_tokens"), read = sum("cache_read_tokens"), steps = sum("steps"), calls = sum("tool_calls"), errs = sum("tool_errors");
+    const healthy = runs.filter((r) => HEALTHY.has(r.health)).length, fast = runs.filter((r) => r.health === H.HV).length;
+    return { n, convs: new Set(runs.map((r) => r.conversation_id)).size, inp, out, read, tokens: inp + out, hit: pct(read, inp + read), cost: sum("cost_usd"), savings: sum("cache_savings_usd"), unpriced: runs.filter((r) => !r.priced).length, avgSteps: n ? steps / n : 0, steps, healthy: pct(healthy, n), healthyN: healthy, fast: pct(fast, n), calls, errRate: pct(errs, Math.max(calls, steps)) };
+  }
+  const kpiCard = (l, v, s, cls = "") => `<div class="kpi ${cls}"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`;
+  function renderKpis(runs) {
+    const k = kpis(runs);
+    $("#kpis").innerHTML = [
+      kpiCard("Total sessions", fmt(k.n), `${fmt(k.convs)} conversations · ${state.gran === "runs" ? "per prompt" : "per thread"}`),
+      kpiCard("Tokens consumed", short(k.tokens), `${short(k.read)} cache read · ${k.hit.toFixed(1)}% hit · ${money(k.cost)} est.${k.unpriced ? ` (${k.unpriced} unpriced)` : ""}`, k.n ? (k.hit >= 85 ? "good" : k.hit < 75 ? "warn" : "") : ""),
+      kpiCard("Average velocity", k.avgSteps.toFixed(1), "steps per " + (state.gran === "runs" ? "task run" : "conversation") + " · lower is faster", k.n && state.gran === "runs" ? (k.avgSteps <= 35 ? "good" : k.avgSteps > 60 ? "bad" : "warn") : ""),
+      kpiCard("Healthy sessions", k.healthy.toFixed(1) + "%", `${fmt(k.healthyN)} high-velocity or standard · target ≥ 80%`, k.n ? (k.healthy >= 80 ? "good" : k.healthy < 75 ? "bad" : "warn") : ""),
+      kpiCard("High velocity rate", k.fast.toFixed(1) + "%", "≤ 30 steps with 0 errors", k.n ? (k.fast >= 50 ? "good" : "") : ""),
+      kpiCard("Tool invocations", fmt(k.calls), `${k.errRate.toFixed(2)}% error rate · target < 1.5%`, k.n ? (k.errRate < 1.5 ? "good" : k.errRate > 3 ? "bad" : "warn") : ""),
+    ].join("");
+  }
+
+  /* ---------- tiny SVG chart kit ---------- */
+  function donut(items, opts = {}) {
+    const total = items.reduce((a, d) => a + d.v, 0);
+    if (!total) return `<div class="empty">No data in this window.</div>`;
+    let a0 = -Math.PI / 2, paths = "";
+    const R = 64, r = 40, cx = 75, cy = 75;
+    for (const d of items) {
+      const a1 = a0 + (2 * Math.PI * d.v) / total, large = a1 - a0 > Math.PI ? 1 : 0;
+      const p = (a, rad) => `${cx + rad * Math.cos(a)},${cy + rad * Math.sin(a)}`;
+      paths += d.v === total ? `<circle cx="${cx}" cy="${cy}" r="${(R + r) / 2}" fill="none" stroke="${d.c}" stroke-width="${R - r}"><title>${esc(d.k)}: ${fmt(d.v)}</title></circle>`
+        : `<path d="M${p(a0, R)} A${R},${R} 0 ${large} 1 ${p(a1, R)} L${p(a1, r)} A${r},${r} 0 ${large} 0 ${p(a0, r)} Z" fill="${d.c}"><title>${esc(d.k)}: ${fmt(d.v)} (${pct(d.v, total).toFixed(1)}%)</title></path>`;
+      a0 = a1;
+    }
+    const legend = items.map((d) => `<span><i style="background:${d.c}"></i>${esc(d.k)} · ${opts.fmt ? opts.fmt(d.v) : fmt(d.v)} (${pct(d.v, total).toFixed(0)}%)</span>`).join("");
+    return `<div class="donutwrap"><svg viewBox="0 0 150 150" width="150" height="150" role="img" aria-label="${esc(opts.label || "")}">${paths}<text x="75" y="72" text-anchor="middle" style="font-size:16px;font-weight:700;fill:var(--ink)">${opts.center ?? fmt(total)}</text><text x="75" y="90" text-anchor="middle">${esc(opts.centerSub || "total")}</text></svg><div class="legend" style="flex-direction:column">${legend}</div></div>`;
+  }
+  function hbars(items, opts = {}) {
+    if (!items.length) return `<div class="empty">No data in this window.</div>`;
+    const max = Math.max(...items.map((d) => d.v)), rowH = 22, labelW = opts.labelW || 150, W = opts.w || 520, H = items.length * rowH + 4;
+    const rows = items.map((d, i) => {
+      const room = W - labelW - (items.some((x) => x.extra) ? 230 : 70), w = max ? (room * d.v) / max : 0, y = i * rowH + 2;
+      return `<text x="${labelW - 6}" y="${y + 14}" text-anchor="end">${esc(d.k.length > 24 ? d.k.slice(0, 23) + "…" : d.k)}</text><rect x="${labelW}" y="${y + 3}" width="${Math.max(w, 1)}" height="${rowH - 8}" rx="3" fill="${d.c || color(0)}"><title>${esc(d.k)}: ${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}</title></rect><text x="${labelW + w + 6}" y="${y + 14}">${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}${d.extra ? " · " + d.extra : ""}</text>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opts.label || "")}">${rows}</svg>`;
+  }
+  function vbars(items, opts = {}) {
+    if (!items.length) return `<div class="empty">No data in this window.</div>`;
+    const W = opts.w || 520, H = opts.h || 200, pad = 28, bw = (W - pad) / items.length, series = opts.series || [{ key: "v", c: color(0) }];
+    const max = Math.max(1, ...items.flatMap((d) => series.map((s) => d[s.key] || 0)));
+    let out = "";
+    items.forEach((d, i) => {
+      const group = Math.min(bw * 0.75, 70 * series.length), gw = group / series.length;
+      series.forEach((s, j) => {
+        const v = d[s.key] || 0, h = ((H - 40) * v) / max, x = pad + i * bw + (bw - group) / 2 + j * gw;
+        out += `<rect x="${x}" y="${H - 22 - h}" width="${Math.max(gw - 2, 1)}" height="${h}" rx="2" fill="${s.c}"><title>${esc(d.k)} · ${esc(s.name || "")} ${opts.fmt ? opts.fmt(v) : fmt(v)}</title></rect>`;
+      });
+      const label = d.k.length > 12 ? d.k.slice(0, 11) + "…" : d.k;
+      if (items.length <= 16 || i % Math.ceil(items.length / 14) === 0) out += `<text x="${pad + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
+    });
+    if (opts.line) {
+      const lmax = opts.lineMax || Math.max(1, ...items.map((d) => d[opts.line.key] || 0));
+      const pts = items.map((d, i) => `${pad + i * bw + bw / 2},${H - 22 - ((H - 40) * (d[opts.line.key] || 0)) / lmax}`).join(" ");
+      out += `<polyline points="${pts}" fill="none" stroke="${opts.line.c}" stroke-width="2"/>` + items.map((d, i) => `<circle cx="${pad + i * bw + bw / 2}" cy="${H - 22 - ((H - 40) * (d[opts.line.key] || 0)) / lmax}" r="3.5" fill="${opts.line.c}"><title>${esc(d.k)} · ${esc(opts.line.name)} ${(d[opts.line.key] || 0).toFixed(1)}</title></circle>`).join("");
+    }
+    out += `<line x1="${pad}" x2="${W}" y1="${H - 22}" y2="${H - 22}" stroke="var(--line)"/>`;
+    const legend = series.length > 1 || opts.line ? `<div class="legend">${series.map((s) => `<span><i style="background:${s.c}"></i>${esc(s.name)}</span>`).join("")}${opts.line ? `<span><i style="background:${opts.line.c}"></i>${esc(opts.line.name)}</span>` : ""}</div>` : "";
+    return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opts.label || "")}">${out}</svg>${legend}`;
+  }
+  const wideW = () => Math.max(520, Math.min(1400, ($("main").clientWidth || 1200) - 60));
+  const card = (id, title, sub, body, foot = "", cls = "") => `<div class="card ${cls}" data-chart="${id}"><h3>${title}</h3><p class="sub">${sub}</p>${body}${foot ? `<p class="foot">${foot}</p>` : ""}</div>`;
+  const count = (runs, f) => { const m = new Map(); for (const r of runs) for (const [k, v] of f(r)) m.set(k, (m.get(k) || 0) + v); return [...m.entries()].sort((a, b) => b[1] - a[1]); };
+  const groupBy = (runs, key) => { const m = new Map(); for (const r of runs) { const k = r[key] || "—"; if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
+
+  /* ---------- the ten charts ---------- */
+  const CHARTS = [
+    { id: "models", tabs: ["tokens", "eff"] }, { id: "anatomy", tabs: ["tokens"] }, { id: "health", tabs: ["eff"] },
+    { id: "skills", tabs: ["tools"] }, { id: "tools", tabs: ["tools"] }, { id: "velocity", tabs: ["eff", "time"] },
+    { id: "spend", tabs: ["tokens", "eff"] }, { id: "waste", tabs: ["tokens"] }, { id: "daily", tabs: ["time"] }, { id: "workspace", tabs: ["time", "tools"] },
+  ];
+  const CTABS = [["all", "All charts"], ["tokens", "Tokens"], ["eff", "Effectiveness"], ["time", "Time and latency"], ["tools", "Tools and skills"]];
+  function renderChartTabs() {
+    $("#ctabs").innerHTML = CTABS.map(([k, l]) => `<button class="tab" data-ct="${k}" aria-pressed="${state.chartTab === k}">${l} <span class="n">${k === "all" ? CHARTS.length : CHARTS.filter((c) => c.tabs.includes(k)).length}</span></button>`).join("");
+  }
+  function renderCharts(runs) {
+    const out = {};
+    const models = count(runs, (r) => [[r.model, 1]]);
+    out.models = card("models", "Model utilization", "Share of sessions by model. Check light work uses fast models and hard work uses strong ones.", donut(models.map(([k, v], i) => ({ k, v, c: color(i) })), { label: "Model utilization", centerSub: "sessions" }));
+
+    const tool = runs.reduce((a, r) => a + r.tool_output_chars / 4, 0), think = runs.reduce((a, r) => a + (r.thinking_tokens || 0), 0), prompt = runs.reduce((a, r) => a + r.prompt_chars / 4, 0), answer = runs.reduce((a, r) => a + Math.max(0, r.output_tokens - (r.thinking_tokens || 0)), 0);
+    const anat = [{ k: "Tool outputs", v: Math.round(tool), c: color(0) }, { k: "Model reasoning", v: think, c: color(1) }, { k: "Model responses", v: answer, c: color(2) }, { k: "User instructions", v: Math.round(prompt), c: color(3) }];
+    const toolShare = pct(tool, tool + think + prompt + answer);
+    out.anatomy = card("anatomy", "Token anatomy", "Where new context comes from. Tool outputs and prompts are estimated at 4 characters per token.", donut(anat, { label: "Token anatomy", fmt: short, center: short(tool + think + prompt + answer), centerSub: "tokens" }), toolShare > 90 ? "Tool outputs dominate: prefer targeted searches and line-bounded reads over dumping whole files or logs." : "");
+
+    const order = state.data.health_order;
+    const hc = count(runs, (r) => [[r.health, 1]]); const hm = new Map(hc);
+    out.health = card("health", "Session health and friction", "Five outcomes; pick one in the Health filter to see its prompts below.", donut(order.filter((h) => hm.get(h)).map((h) => ({ k: h, v: hm.get(h), c: css(HEALTH_COLOR[h]) })), { label: "Session health", centerSub: "sessions" }));
+
+    const skills = count(runs, (r) => r.skills.map((s) => [s, 1])).slice(0, 12);
+    out.skills = card("skills", "Top skills activated", "Skills the agent loaded. A skill you wrote that never appears needs better trigger words in its description.", hbars(skills.map(([k, v]) => ({ k, v, c: color(1) })), { label: "Skills" }));
+
+    const tools = count(runs, (r) => Object.entries(r.tools)).slice(0, 12);
+    const reads = tools.filter(([t]) => /read|view|grep|glob|search|find|ls/i.test(t)).reduce((a, [, v]) => a + v, 0), edits = tools.filter(([t]) => isWrite(t)).reduce((a, [, v]) => a + v, 0);
+    out.tools = card("tools", "Tool invocation frequency", "Most-called tools. A healthy read-to-edit ratio is about 3:1 to 5:1.", hbars(tools.map(([k, v]) => ({ k, v, c: color(0) })), { label: "Tools" }), edits ? `Read-to-edit ratio ${(reads / edits).toFixed(1)}:1` : "");
+
+    const byModel = [...groupBy(runs.filter((r) => r.steps), "model").entries()].map(([k, rs]) => {
+      const tokens = rs.reduce((a, r) => a + r.input_tokens + r.cache_write_tokens + r.output_tokens, 0), ok = rs.filter((r) => HEALTHY.has(r.health)).length;
+      return { k, steps: rs.reduce((a, r) => a + r.steps, 0) / rs.length, avgTok: tokens / rs.length, perOk: ok ? tokens / ok : 0, success: pct(ok, rs.length), n: rs.length };
+    }).sort((a, b) => b.n - a.n).slice(0, 8);
+    out.velocity = card("velocity", "Model step velocity", "Average steps per run by model. Lower bars finish faster.", vbars(byModel.map((d) => ({ k: d.k, v: d.steps })), { label: "Steps per run by model", fmt: (v) => v.toFixed(1) }));
+    const best = byModel.filter((d) => d.n >= 3 && d.perOk).sort((a, b) => a.perOk - b.perOk)[0];
+    out.spend = card("spend", "Token spend vs task effectiveness", "Tokens per run, tokens per healthy run, and success rate by model.", vbars(byModel.map((d) => ({ k: d.k, a: d.avgTok, b: d.perOk, s: d.success })), { label: "Spend vs effectiveness", fmt: short, series: [{ key: "a", name: "Avg tokens / run", c: color(0) }, { key: "b", name: "Tokens / success", c: color(1) }], line: { key: "s", name: "Success rate %", c: css("--good") }, lineMax: 100 }), best ? `Most effective: <b>${esc(best.k)}</b> at ${short(best.perOk)} tokens per healthy run` : "");
+
+    const byHealth = order.map((h) => { const rs = runs.filter((r) => r.health === h); return { k: h.replace(/ \(.*\)/, "").replace(/^(Friction|Wandering|Failure): /, ""), full: h, v: rs.length ? rs.reduce((a, r) => a + r.input_tokens + r.cache_write_tokens + r.output_tokens, 0) / rs.length : 0 }; }).filter((d) => d.v);
+    const clean = runs.filter((r) => HEALTHY.has(r.health)), loop = runs.filter((r) => r.health === H.LOOP);
+    const avg = (rs) => rs.length ? rs.reduce((a, r) => a + r.input_tokens + r.cache_write_tokens + r.output_tokens, 0) / rs.length : 0;
+    const inflation = clean.length && loop.length ? pct(avg(loop) - avg(clean), avg(clean)) : null;
+    out.waste = card("waste", "Outcome token waste", "Average tokens per run by outcome.", vbars(byHealth.map((d) => ({ k: d.k, v: d.v })), { label: "Tokens by outcome", fmt: short }) + (inflation !== null ? `<p class="banner">Tool loop inflation: ${inflation >= 0 ? "+" : ""}${inflation.toFixed(0)}% tokens burned vs clean runs</p>` : ""));
+
+    const days = new Map();
+    for (const r of runs) { const d = (r.started || "").slice(0, 10); if (!d) continue; const e = days.get(d) || { n: 0, t: 0 }; e.n++; e.t += r.input_tokens + r.cache_write_tokens + r.output_tokens; days.set(d, e); }
+    const dl = [...days.entries()].sort().slice(-14);
+    const maxN = Math.max(1, ...dl.map(([, e]) => e.n)), maxT = Math.max(1, ...dl.map(([, e]) => e.t));
+    out.daily = card("daily", "Daily activity and token volume", "Last 14 active days: sessions (bars) and tokens (line, scaled to the busiest day).", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.n, tk: (100 * e.t) / maxT })), { label: "Daily activity", series: [{ key: "v", name: "Sessions", c: color(0) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(1) }, lineMax: 100, h: 220, w: wideW() }), "", "wide");
+
+    const ws = [...groupBy(runs, "workspace").entries()].map(([k, rs]) => { const steps = rs.reduce((a, r) => a + r.steps, 0); const secs = rs.reduce((a, r) => a + Math.max(0, (Date.parse(r.ended) - Date.parse(r.started)) / 1000), 0); return { k, v: rs.length, extra: `${(steps / rs.length).toFixed(1)} steps · ${steps ? (secs / steps).toFixed(1) : 0}s/step` }; }).sort((a, b) => b.v - a.v).slice(0, 12);
+    out.workspace = card("workspace", "Workspace distribution and turn latency", "Sessions per repository, with average steps and seconds per step.", hbars(ws.map((d) => ({ ...d, c: color(2) })), { label: "Workspaces", labelW: 170, w: wideW() }), "", "wide");
+
+    $("#charts").innerHTML = CHARTS.filter((c) => state.chartTab === "all" || c.tabs.includes(state.chartTab)).map((c) => out[c.id]).join("");
+  }
+
+  /* ---------- session table and inspector ---------- */
+  const COLS = [["run_id", "Run ID"], ["prompt", "Prompt / task"], ["agent", "Agent"], ["model", "Model"], ["workspace", "Workspace"], ["steps", "Steps", 1], ["tokens", "Tokens (in+out)", 1], ["hit", "Cache hit", 1], ["tool_calls", "Tools", 1], ["skills", "Skills"], ["health", "Health"], ["started", "Started (UTC)"]];
+  const val = (r, k) => k === "tokens" ? r.input_tokens + r.cache_write_tokens + r.output_tokens : k === "hit" ? pct(r.cache_read_tokens, r.input_tokens + r.cache_write_tokens + r.cache_read_tokens) : k === "skills" ? r.skills.join(", ") : r[k];
+  const pill = (h) => `<span class="pill" style="background:color-mix(in srgb, ${css(HEALTH_COLOR[h] || "--ink-3")} 18%, transparent);color:${css(HEALTH_COLOR[h] || "--ink-3")}">${esc(h)}</span>`;
+  function renderTable(runs) {
+    const { key, dir } = state.sort;
+    const rows = [...runs].sort((a, b) => { const x = val(a, key), y = val(b, key); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
+    $("#runs thead").innerHTML = `<tr>${COLS.map(([k, l, n]) => `<th class="${n ? "num" : ""}" data-sort="${k}">${l}${k === key ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr>`;
+    $("#runs tbody").innerHTML = rows.slice(0, state.limit).map((r, i) => `<tr data-i="${i}"><td class="muted">${esc(r.run_id.length > 14 ? r.run_id.slice(0, 8) + "…" + r.run_id.slice(-4) : r.run_id)}</td><td class="prompt" title="${esc(r.prompt)}">${esc(r.prompt || r.title || "—")}</td><td>${esc(r.agent)}</td><td>${esc(r.model)}</td><td>${esc(r.workspace)}</td><td class="num">${fmt(r.steps)}</td><td class="num">${short(val(r, "tokens"))}</td><td class="num">${val(r, "hit").toFixed(0)}%</td><td class="num">${fmt(r.tool_calls)}</td><td>${esc(r.skills.join(", ")) || '<span class="muted">—</span>'}</td><td>${pill(r.health)}</td><td class="muted">${esc((r.started || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") || `<tr><td colspan="${COLS.length}" class="empty">No sessions match these filters.</td></tr>`;
+    $("#runs-foot").innerHTML = rows.length > state.limit ? `Showing ${state.limit} of ${fmt(rows.length)}. <button class="btn" id="more">Show more</button>` : `${fmt(rows.length)} shown.`;
+    $("#runs tbody").onclick = (e) => { const tr = e.target.closest("tr[data-i]"); if (tr) inspect(rows[+tr.dataset.i]); };
+    const more = $("#more"); if (more) more.onclick = () => { state.limit += 200; renderTable(runs); };
+  }
+  function inspect(r) {
+    const secs = Math.max(0, (Date.parse(r.ended) - Date.parse(r.started)) / 1000);
+    const tools = Object.entries(r.tools).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(t)}: ${n}`).join(" • ") || "none";
+    $("#inspect-body").innerHTML = `<h2>Session telemetry inspector</h2><p class="muted">${esc(r.run_id)}${r.title ? " · " + esc(r.title) : ""}</p>
+      <pre>${esc(r.prompt || "(no prompt text)")}</pre>
+      <dl><dt>Health</dt><dd>${pill(r.health)}</dd><dt>Agent / model</dt><dd>${esc(r.agent)} · ${esc(r.models.join(", ") || r.model)}</dd><dt>Workspace</dt><dd>${esc(r.workspace)} <span class="muted">${esc(r.cwd)}</span></dd>
+      <dt>Steps</dt><dd>${fmt(r.steps)}${r.subagent_steps ? ` (${fmt(r.subagent_steps)} in subagents)` : ""}${r.runs ? ` across ${r.runs} task runs` : ""}</dd>
+      <dt>Tokens</dt><dd>in ${fmt(r.input_tokens)} · cache write ${fmt(r.cache_write_tokens)} · cache read ${fmt(r.cache_read_tokens)} · out ${fmt(r.output_tokens)}${r.thinking_tokens ? ` (reasoning ${fmt(r.thinking_tokens)})` : ""}</dd>
+      <dt>Tools called</dt><dd>${tools}</dd><dt>Skills</dt><dd>${esc(r.skills.join(", ")) || "none"}</dd>
+      <dt>File writes / errors</dt><dd>${fmt(r.file_writes)} writes · ${fmt(r.tool_errors)} errors · longest repeat ${fmt(r.max_repeat)}</dd>
+      <dt>Duration</dt><dd>${secs >= 60 ? (secs / 60).toFixed(1) + " min" : secs.toFixed(0) + " s"} · ${r.steps ? (secs / r.steps).toFixed(1) : 0} s per step</dd>
+      <dt>Estimated cost</dt><dd>${r.priced ? money(r.cost_usd) : "unpriced model"}${r.cache_savings_usd ? ` · cache saved ${money(r.cache_savings_usd)}` : ""}</dd>
+      <dt>Time (UTC)</dt><dd>${esc(r.started)} → ${esc(r.ended)}</dd></dl>`;
+    $("#inspect").showModal();
+  }
+
+  /* ---------- code deliverables ---------- */
+  const issueLink = (i) => esc(i);
+  function renderCode() {
+    const cs = filteredCommits(), mine = cs.filter((c) => c.mine);
+    $("#ckpis").innerHTML = [kpiCard("Matching commits", fmt(cs.length), `${new Set(cs.map((c) => c.repo)).size} repositories`), kpiCard("My commits", fmt(mine.length), "by your git email"), kpiCard("AI-credited", fmt(mine.filter((c) => c.ai_tagged).length), "Co-Authored-By an agent, or your AI tag"), kpiCard("Linked issues", fmt(new Set(mine.flatMap((c) => c.issues)).size), "#123, ABC-123 or b/123 in messages")].join("");
+    const repos = count(cs, (c) => [[c.repo, 1]]), types = count(cs, (c) => [[c.type || "other", 1]]);
+    $("#ccharts").innerHTML = card("repos", "Commits by repository", "", hbars(repos.slice(0, 12).map(([k, v]) => ({ k, v, c: color(0) })), { label: "Commits by repo" })) + card("types", "Commits by conventional type", "feat, fix, refactor, test, docs, chore…", donut(types.slice(0, 8).map(([k, v], i) => ({ k, v, c: color(i) })), { label: "Commit types", centerSub: "commits" }));
+    $("#commits thead").innerHTML = "<tr><th>Date</th><th>Repo</th><th>Type</th><th>Subject</th><th>Author</th><th>Issues</th><th>AI</th></tr>";
+    $("#commits tbody").innerHTML = cs.slice(0, 300).map((c) => `<tr><td class="muted">${esc(c.date.slice(0, 10))}</td><td>${esc(c.repo)}</td><td>${esc(c.type + (c.scope ? `(${c.scope})` : ""))}</td><td>${esc(c.subject)}</td><td>${esc(c.author)}${c.mine ? ' <span class="muted">(you)</span>' : ""}</td><td>${c.issues.map(issueLink).join(" ")}</td><td>${c.ai_tagged ? "✓" : ""}</td></tr>`).join("") || `<tr><td colspan="7" class="empty">No commits in this window.</td></tr>`;
+  }
+
+  /* ---------- ROI ---------- */
+  function renderRoi() {
+    const runs = filtered(), k = kpis(runs), mine = filteredCommits().filter((c) => c.mine), n = mine.length;
+    $("#rkpis").innerHTML = [
+      kpiCard("Tokens per my commit", n ? short(k.tokens / n) : "—", `${fmt(n)} commits · ${short(k.tokens)} tokens`),
+      kpiCard("Agent steps per commit", n ? (k.steps / n).toFixed(1) : "—", `${fmt(k.steps)} steps`),
+      kpiCard("Est. cost per commit", n ? money(k.cost / n) : "—", `${money(k.cost)} total, API list prices`),
+      kpiCard("Context cache savings", money(k.savings), `${short(k.read)} tokens read from cache`, "good"),
+      kpiCard("Issues linked", fmt(new Set(mine.flatMap((c) => c.issues)).size), "in your commits"),
+    ].join("");
+    const days = new Map();
+    for (const r of runs) { const d = (r.started || "").slice(0, 10); const e = days.get(d) || { t: 0, c: 0 }; e.t += r.input_tokens + r.cache_write_tokens + r.output_tokens; days.set(d, e); }
+    for (const c of mine) { const d = c.date.slice(0, 10); const e = days.get(d) || { t: 0, c: 0 }; e.c++; days.set(d, e); }
+    const dl = [...days.entries()].filter(([d]) => d).sort().slice(-21), maxT = Math.max(1, ...dl.map(([, e]) => e.t)), maxC = Math.max(1, ...dl.map(([, e]) => e.c));
+    $("#rcharts").innerHTML = card("roi-daily", "Tokens and commits by day", "Bars: your commits. Line: agent tokens, as a share of the busiest day.", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.c, tk: (100 * e.t) / maxT })), { label: "Tokens and commits", series: [{ key: "v", name: "My commits", c: color(2) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(0) }, lineMax: 100, h: 230, w: wideW() }), "Correlation, not attribution: commits and agent sessions are matched by day only.", "wide");
+  }
+
+  /* ---------- glue ---------- */
+  function fillSelect(id, label, values, cur) {
+    $(id).innerHTML = `<option value="">${label}</option>` + values.map((v) => `<option ${v === cur ? "selected" : ""}>${esc(v)}</option>`).join("");
+  }
+  function render() {
+    if (!state.data) return;
+    const runs = filtered();
+    $("#n-agents").textContent = fmt(runs.length);
+    $("#n-code").textContent = fmt(filteredCommits().length);
+    for (const m of ["agents", "code", "roi"]) $("#mode-" + m).classList.toggle("hide", state.mode !== m);
+    if (state.mode === "agents") { renderKpis(runs); renderChartTabs(); renderCharts(runs); renderTable(runs); }
+    else if (state.mode === "code") renderCode();
+    else renderRoi();
+  }
+  async function load(force) {
+    try {
+      const res = await fetch(force ? "/api/sync" : "/api/telemetry", { method: force ? "POST" : "GET" });
+      state.data = await res.json();
+      const all = state.data.runs;
+      fillSelect("#f-agent", "All agents", [...new Set(all.map((r) => r.agent))].sort(), state.agent);
+      fillSelect("#f-model", "All models", [...new Set(all.map((r) => r.model))].sort(), state.model);
+      fillSelect("#f-health", "All outcomes", state.data.health_order, state.health);
+      $("#synced").textContent = "⏱ Synced " + new Date().toLocaleTimeString();
+      render();
+    } catch (err) { $("#synced").textContent = "Sync failed: " + err.message; }
+  }
+  function schedule() {
+    clearInterval(state.timer);
+    const s = +$("#sync-every").value;
+    $("#sync-dot").classList.toggle("on", s > 0);
+    if (s > 0) state.timer = setInterval(() => load(false), s * 1000);
+  }
+  const press = (group, btn) => group.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === btn)));
+  $("#modes").onclick = (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; state.mode = b.dataset.mode; press($("#modes"), b); render(); };
+  $("#win").onclick = (e) => { const b = e.target.closest("[data-days]"); if (!b) return; state.days = +b.dataset.days; state.from = state.to = ""; $("#from").value = $("#to").value = ""; press($("#win"), b); render(); };
+  $("#from").onchange = (e) => { state.from = e.target.value; press($("#win"), null); render(); };
+  $("#to").onchange = (e) => { state.to = e.target.value; press($("#win"), null); render(); };
+  $("#gran").onclick = (e) => { const b = e.target.closest("[data-g]"); if (!b) return; state.gran = b.dataset.g; press($("#gran"), b); render(); };
+  let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value.trim(); state.limit = 100; render(); }, 150); };
+  $("#f-agent").onchange = (e) => { state.agent = e.target.value; render(); };
+  $("#f-model").onchange = (e) => { state.model = e.target.value; render(); };
+  $("#f-health").onchange = (e) => { state.health = e.target.value; render(); };
+  $("#ctabs").onclick = (e) => { const b = e.target.closest("[data-ct]"); if (!b) return; state.chartTab = b.dataset.ct; render(); };
+  $("#runs thead").onclick = (e) => { const th = e.target.closest("[data-sort]"); if (!th) return; const k = th.dataset.sort; state.sort = { key: k, dir: state.sort.key === k ? -state.sort.dir : -1 }; render(); };
+  $("#sync-now").onclick = () => load(true);
+  $("#sync-every").onchange = () => { try { localStorage.setItem("ao-sync", $("#sync-every").value); } catch (e) {} schedule(); };
+  $("#theme").onclick = () => { const t = document.documentElement.dataset.theme === "dark" ? "light" : "dark"; document.documentElement.dataset.theme = t; try { localStorage.setItem("ao-theme", t); } catch (e) {} render(); };
+  $("#inspect-close").onclick = () => $("#inspect").close();
+  let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && +$("#sync-every").value) load(false); });
+  try { const t = localStorage.getItem("ao-theme"); if (t) document.documentElement.dataset.theme = t; const s = localStorage.getItem("ao-sync"); if (s) $("#sync-every").value = s; } catch (e) {}
+  schedule();
+  load(false);
+})();
+</script>
+</body>
+</html>

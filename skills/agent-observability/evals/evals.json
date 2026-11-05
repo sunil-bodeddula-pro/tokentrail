@@ -1,0 +1,24 @@
+{
+  "skill": "agent-observability",
+  "trigger": [
+    {"prompt": "How efficient have my agent sessions been this month?", "should_trigger": true},
+    {"prompt": "Why are my Claude Code sessions so expensive?", "should_trigger": true},
+    {"prompt": "Is my kotlin-unit-tests skill actually being used by the agent?", "should_trigger": true},
+    {"prompt": "Open the agent telemetry dashboard", "should_trigger": true},
+    {"prompt": "Export my agent token usage to CSV", "should_trigger": true},
+    {"prompt": "Which model gets my tasks done with the fewest tokens?", "should_trigger": true},
+    {"prompt": "Write a unit test for the parser", "should_trigger": false},
+    {"prompt": "Set up Prometheus alerts for my web service", "should_trigger": false},
+    {"prompt": "How do I reduce my AWS bill?", "should_trigger": false}
+  ],
+  "behaviour": [
+    {"prompt": "How have my agent sessions gone this month?",
+     "expect": ["runs the summary with --days 30", "compares cache hit, steps, healthy share and error rate with the targets", "names the biggest gap first"]},
+    {"prompt": "Show me the dashboard",
+     "expect": ["starts the server on 127.0.0.1", "gives the URL", "does not bind to 0.0.0.0 unasked"]},
+    {"prompt": "Lots of my runs are tool loops, what do I do?",
+     "expect": ["points to the inspector's longest repeat", "suggests putting the correct command in instructions or a skill", "suggests stopping after two identical failures"]},
+    {"prompt": "What did my Cursor sessions cost?",
+     "expect": ["says Cursor is not read by default", "explains the generic event format or an adapter", "does not invent figures"]}
+  ]
+}
