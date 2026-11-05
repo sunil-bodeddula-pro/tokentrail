@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tokentrail"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Local telemetry and dashboard for AI coding agents: tokens, tools, skills, health and shipped code."
 readme = "README.md"
 requires-python = ">=3.12"
@@ -38,6 +38,9 @@ Issues = "https://github.com/sunil-bodeddula-pro/tokentrail/issues"
 
 [project.scripts]
 tokentrail = "tokentrail.cli:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "tokentrail.__version__" }  # one place to bump: src/tokentrail/__init__.py
 
 [tool.setuptools.packages.find]
 where = ["src"]

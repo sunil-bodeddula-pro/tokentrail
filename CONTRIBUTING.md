@@ -46,6 +46,15 @@ python3 -m unittest discover -s tests -v
 
 AI coding agents: read [AGENTS.md](AGENTS.md) (Claude Code loads it through `CLAUDE.md`).
 
+## Releasing (maintainers)
+
+Releases go to PyPI from GitHub Actions through trusted publishing, so no API token is stored anywhere.
+
+1. Bump `__version__` in `src/tokentrail/__init__.py`. It's the only place the version lives; `pyproject.toml` reads it.
+2. Commit, push, and wait for CI to pass on `main`.
+3. Optional dry run: Actions → **Release** → **Run workflow** builds the package and uploads it to TestPyPI.
+4. Create a GitHub release with a tag that matches the version, for example `v0.2.0`, and publish it. The Release workflow checks that the tag matches `__version__`, runs the tests, builds and checks the sdist and wheel, and uploads them to PyPI.
+
 ## Pull requests
 
 - Run the tests on Python 3.12 or later.
