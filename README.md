@@ -3,12 +3,75 @@
 [![CI](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-**TokenTrail** is observability for AI agents that runs on your own machine. It shows how your agents reason, spend tokens, call tools and load skills, and how that spend turns into shipped code.
+**See what your AI agents actually do with your tokens.** TokenTrail is local-first observability for AI agents. It shows how they spend tokens, call tools and load skills, where they get stuck, and how all of that turns into shipped code. It runs on your own machine.
 
-- **It works with any agent.** Claude Code is read out of the box. Any other agent shows up once it writes the [generic event format](docs/event-format.md) (one JSON line per event), or once someone adds a small adapter.
-- **It keeps its own record.** Every 30 seconds TokenTrail copies what's new into a store made of plain JSON files. Clearing your agent's history doesn't lose anything, and nothing is parsed twice.
-- **Remote copies are optional.** You can mirror the store to `gs://`, `s3://` or a shared folder, so several machines show up on one dashboard. Prompt text is removed before upload unless you choose to keep it.
-- **No extra software.** It needs only Python 3.12+ and its standard library. There's no database and no server to run, and nothing leaves your machine unless you set a remote.
+![The TokenTrail dashboard: six KPI cards (sessions, tokens, velocity, healthy share, high-velocity rate, tool calls) above the chart grid, with demo data](docs/images/overview.png)
+
+<sub>All screenshots use the [demo data](#try-it-with-demo-data), not real sessions.</sub>
+
+## Why TokenTrail?
+
+AI coding agents now do a lot of real work, but most of it happens out of sight. A session runs for twenty minutes, burns half a million tokens, and you only see the final answer. Was it efficient? Did it loop on a failing test? Did it ever use the skill you wrote for exactly this task? Is the expensive model worth it for this kind of work? And when the agent's history is cleared, the evidence is gone too.
+
+TokenTrail answers those questions from data your agents already leave on disk, without changing how you work.
+
+## What it does
+
+1. **Collects** each agent's local session logs as they're written. Claude Code works out of the box, and any other agent can write a simple [JSON-lines event format](docs/event-format.md).
+2. **Keeps its own record** in a store of plain JSON files, synced every 30 seconds. Clearing an agent's history loses nothing, and nothing is parsed twice.
+3. **Measures every request:** tokens (input, output, cache reads and writes, reasoning), cache hit rate, estimated cost, steps, tool calls and errors, file writes, skills and subagents.
+4. **Classifies each run's health:** High-Velocity, Positive, Tool Loops, Wandering (lots of steps, nothing written) or High Error Rate. You can see at a glance which requests went well and which didn't.
+5. **Connects agent work to shipped code** by reading the git history of the repositories the agents worked in: your commits, AI-credited commits, linked issues, and tokens and cost per commit.
+6. **Shows it all on a local dashboard,** with filters by time, agent, model, outcome and machine, ten charts, a searchable session table, and an inspector for every run.
+7. **Optionally mirrors the store** to Google Cloud Storage, S3 or a shared folder, so you can see several machines in one place. Prompt text is removed before upload.
+
+## Questions it answers
+
+| Question | Where to look |
+| :--- | :--- |
+| How much are my agents costing me, and is prompt caching working? | Tokens consumed card (cache hit %, estimated cost), Token anatomy |
+| Which requests went badly, and why? | Session health chart, the Health filter, the inspector (longest repeat, errors, writes) |
+| Is the agent stuck in a loop re-running the same failing command? | Tool Loops outcome, Outcome token waste ("tool loop inflation") |
+| Which model gets my kind of work done for the fewest tokens? | Token spend vs task effectiveness (tokens per successful run, by model) |
+| Are my skills and agent instructions being used? | Top skills activated |
+| Is the agent reading sensibly, or dumping whole files and logs? | Tool invocation frequency (read-to-edit ratio), Token anatomy (tool output share) |
+| Which repositories take the most agent time? | Workspace distribution and turn latency |
+| What does a commit cost me in agent tokens and dollars? | Cross-Domain ROI |
+
+## Who it helps
+
+- **Developers using AI agents every day** can tighten prompts, catch loops early, keep cache hit rates high, and pick the right model for each job.
+- **Authors of skills, agent instructions and custom agents** can check whether their skills fire and whether a change made runs faster or slower.
+- **Team leads and platform teams** can mirror several machines into one bucket and see usage, cost and health across the team, with prompts redacted.
+- **Anyone curious about cost** gets an API-equivalent estimate per run, per model and per commit, even on a flat-rate plan.
+
+## What it isn't
+
+- **Not a cloud service.** There's no account and no backend. Data stays on your machine unless you configure a remote.
+- **Not a tracing SDK for production LLM apps.** It watches agents you run, from their logs, with no code changes. To trace an application you're deploying, use an APM or LLM tracing tool.
+- **It doesn't call any model.** Analysis is plain counting, so using TokenTrail costs no tokens.
+- **Costs are estimates** at API list prices, not your invoice.
+
+## Screenshots
+
+| | |
+| :---: | :---: |
+| ![Charts: session health donut, top skills, tool frequency and model step velocity](docs/images/charts.png) | ![Session inspector for a run flagged as a tool loop: tokens, tools, longest repeat, duration and cost](docs/images/inspector.png) |
+| **Health, skills, tools and velocity.** Ten charts in all, grouped by tokens, effectiveness, time and tools. | **The inspector.** One run flagged as a tool loop: the same command repeated six times. |
+| ![Cross-Domain ROI: tokens and agent steps per commit, cost per commit, cache savings, linked issues](docs/images/roi.png) | |
+| **Cross-Domain ROI.** Agent tokens, steps and cost per commit, and what caching saved. | |
+
+## Try it with demo data
+
+No agent needed. The demo script writes a month of made-up sessions for three agents and four small git repositories into one folder. Your real history and store aren't touched.
+
+```bash
+git clone https://github.com/sunil-bodeddula-pro/tokentrail && cd tokentrail
+python3 examples/demo_data.py                                   # writes ./tokentrail-demo
+PYTHONPATH=src python3 -m tokentrail --config tokentrail-demo/config.json
+```
+
+Then open http://127.0.0.1:8765. Delete the `tokentrail-demo` folder when you're done.
 
 ---
 
