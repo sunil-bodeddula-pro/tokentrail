@@ -50,13 +50,16 @@ AI coding agents: read [AGENTS.md](AGENTS.md) (Claude Code loads it through `CLA
 
 Releases go to PyPI from GitHub Actions through trusted publishing, so no API token is stored anywhere.
 
-1. Bump `__version__` in `src/tokentrail/__init__.py`. It's the only place the version lives; `pyproject.toml` reads it.
+1. Bump `__version__` in `src/tokentrail/__init__.py`. It's the only place the version lives; `pyproject.toml` reads it. Move the **Unreleased** notes in `CHANGELOG.md` into a section for the new version.
 2. Commit, push, and wait for CI to pass on `main`.
 3. Optional dry run: Actions → **Release** → **Run workflow** builds the package and uploads it to TestPyPI.
 4. Create a GitHub release with a tag that matches the version, for example `v0.2.0`, and publish it. The Release workflow checks that the tag matches `__version__`, runs the tests, builds and checks the sdist and wheel, and uploads them to PyPI.
+
+The full checklist, including what to do when the workflow fails, is in [`.claude/skills/release/SKILL.md`](.claude/skills/release/SKILL.md).
 
 ## Pull requests
 
 - Run the tests on Python 3.12 or later.
 - For dashboard changes, check desktop and phone widths in both themes, and include a screenshot.
 - Keep commits focused and describe the user-visible change.
+- Add a line under **Unreleased** in `CHANGELOG.md` for anything users will notice.

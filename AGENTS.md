@@ -30,6 +30,8 @@ Before you say a change is done, run the tests, `ruff check .`, `ruff format --c
 | `src/tokentrail/cli.py`, `config.py`, `service.py` | Commands, settings, the login service |
 | `src/tokentrail/static/dashboard.html` | The whole dashboard: one file, vanilla JS, hand-drawn SVG charts |
 | `skills/tokentrail/` | The agent skill shipped to users (how to run and read TokenTrail), not instructions for this repo |
+| `.claude/skills/release/` | The maintainer skill for cutting a release; not shipped in the package |
+| `.github/workflows/` | `ci.yml` (lint, types, tests on three OSes) and `release.yml` (PyPI upload on a published release) |
 | `docs/event-format.md` | The generic event format any agent can write |
 | `tests/test_telemetry.py` | All tests, with fixtures written to temp dirs and in-memory fakes for GCS and S3 |
 
@@ -48,6 +50,12 @@ Before you say a change is done, run the tests, `ruff check .`, `ruff format --c
 ## Adding an agent
 
 See "Adding an agent adapter" in [CONTRIBUTING.md](CONTRIBUTING.md): an adapter class with `name`, `sources()` and `events(path)`, registered in `adapters/__init__.py` and `cli.make_adapters`, plus a fixture test and a README row.
+
+## Changelog and releases
+
+- Add a line under **Unreleased** in `CHANGELOG.md` for every user-visible change (new feature, fix, changed default or flag), written for users rather than as a commit subject.
+- To cut a release, follow `.claude/skills/release/SKILL.md`. Claude Code loads it as the `release` skill; other agents should read the file. In short: bump `__version__` in `src/tokentrail/__init__.py`, move the Unreleased notes into a version section, pass every check, push, then publish a `vX.Y.Z` GitHub release, which uploads to PyPI.
+- **Never create a release, tag or PyPI upload without the maintainer's explicit go-ahead.** A version can't be re-uploaded to PyPI.
 
 ## Style
 
