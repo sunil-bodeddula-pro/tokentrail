@@ -4,6 +4,10 @@ All notable changes to TokenTrail. The format follows [Keep a Changelog](https:/
 
 ## [Unreleased]
 
+### Changed
+
+- The session explorer is paginated: First, Prev, page numbers, Next and Last, with 10, 25, 50 or 100 rows per page. This replaces the Show more button.
+
 ## [0.1.0] - 2026-11-05
 
 First public release.

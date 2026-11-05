@@ -282,7 +282,7 @@ Chart sub-tabs filter them: All (10), Tokens (4), Effectiveness (4), Time and la
 
 ### 5.5 Session explorer and inspector
 
-- **Table:** run ID, prompt, agent, model, workspace, steps, tokens, cache hit, tools, skills, health and start time. Click a column to sort.
+- **Table:** run ID, prompt, agent, model, workspace, steps, tokens, cache hit, tools, skills, health and start time. Click a column to sort. Rows are split into pages, with 10, 25, 50 or 100 per page (25 by default, and your choice is remembered). Changing a filter, the search or the sort goes back to page 1; background syncs keep your page.
 - **Inspector:** click a row to open it. It shows the machine, the full prompt (or "redacted" for runs pulled from a redacted remote), every tool with its call count, skills, writes and errors, the longest repeat, duration and seconds per step, the token split, estimated cost and cache savings.
 
 ### 5.6 Code Deliverables

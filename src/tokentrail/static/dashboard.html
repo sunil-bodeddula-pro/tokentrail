@@ -62,6 +62,14 @@ th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: v
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr { cursor: pointer; } tbody tr:hover { background: var(--panel-2); }
 .tablewrap { overflow-x: auto; max-height: 640px; overflow-y: auto; }
+.tablewrap.paged { max-height: none; overflow-y: visible; }
+.pager { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin-top: 14px; font-size: 14px; color: var(--ink-2); }
+.pager .pages { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.pager .pg { min-width: 38px; padding: 6px 10px; text-align: center; font-variant-numeric: tabular-nums; }
+.pager .pg[aria-current="page"] { background: var(--accent); border-color: var(--accent); color: var(--bg); font-weight: 700; }
+.pager .pg:disabled { opacity: .4; cursor: default; border-color: var(--line); }
+.pager .gap { padding: 0 4px; color: var(--ink-3); }
+.pager label { display: inline-flex; align-items: center; gap: 8px; }
 .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .prompt { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .muted { color: var(--ink-3); }
@@ -78,6 +86,7 @@ dialog pre { white-space: pre-wrap; background: var(--panel-2); padding: 12px; b
 a { color: var(--accent); }
 @media (max-width: 1100px) { .charts { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .pager .pg.edge { display: none; } .pager .pg { min-width: 34px; padding: 6px 8px; } .pager .pages { gap: 3px; } }
 @media (max-width: 700px) { .kpis { grid-template-columns: 1fr; gap: 12px; } .kpi, .card { padding: 16px 16px; } .kpi .v { font-size: 30px; } header { padding: 10px 12px; position: static; } .tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; } .filters input[type=search] { flex-basis: 100%; } main { padding: 12px; } .charts { grid-template-columns: 1fr; } .donutwrap { grid-template-columns: 1fr; } dialog dl { grid-template-columns: 1fr; } .filters input[type=search] { min-width: 0; width: 100%; } }
 </style>
 </head>
@@ -121,7 +130,7 @@ a { color: var(--accent); }
     <div class="card">
       <h3>Session explorer</h3>
       <p class="sub">Click a row for the full breakdown. Click a column to sort.</p>
-      <div class="tablewrap"><table id="runs"><thead></thead><tbody></tbody></table></div>
+      <div class="tablewrap paged" id="runs-wrap"><table id="runs"><thead></thead><tbody></tbody></table></div>
       <p class="foot" id="runs-foot"></p>
     </div>
   </section>
@@ -159,7 +168,7 @@ a { color: var(--accent); }
   const HEALTHY = new Set([H.HV, H.POS]);
   const isWrite = (t) => /(^|_)(write|edit|multiedit|replace|create_file|apply_patch|str_replace|notebookedit)/i.test(t);
 
-  const state = { data: null, machine: "", mode: "agents", days: 30, from: "", to: "", gran: "runs", q: "", agent: "", model: "", health: "", chartTab: "all", sort: { key: "started", dir: -1 }, limit: 100, timer: null };
+  const state = { data: null, machine: "", mode: "agents", days: 30, from: "", to: "", gran: "runs", q: "", agent: "", model: "", health: "", chartTab: "all", sort: { key: "started", dir: -1 }, page: 1, pageSize: 25, tableSig: "", timer: null };
 
   /* ---------- health: same thresholds as segment.py ---------- */
   function classify(r) {
@@ -368,14 +377,49 @@ a { color: var(--accent); }
   const COLS = [["run_id", "Run ID"], ["prompt", "Prompt / task"], ["agent", "Agent"], ["model", "Model"], ["workspace", "Workspace"], ["steps", "Steps", 1], ["tokens", "Tokens (in+out)", 1], ["hit", "Cache hit", 1], ["tool_calls", "Tools", 1], ["skills", "Skills"], ["health", "Health"], ["started", "Started (UTC)"]];
   const val = (r, k) => k === "tokens" ? r.input_tokens + r.cache_write_tokens + r.output_tokens : k === "hit" ? pct(r.cache_read_tokens, r.input_tokens + r.cache_write_tokens + r.cache_read_tokens) : k === "skills" ? r.skills.join(", ") : r[k];
   const pill = (h) => `<span class="pill" style="background:color-mix(in srgb, ${css(HEALTH_COLOR[h] || "--ink-3")} 18%, transparent);color:${css(HEALTH_COLOR[h] || "--ink-3")}">${esc(h)}</span>`;
+  // "Showing 26–50 of 298", page size, and First / Prev / 1 … 4 5 6 … 12 / Next / Last.
+  function pager(total, first, pages) {
+    const p = state.page, btn = (n, label, aria = "", cls = "") => `<button class="btn pg ${cls}" data-page="${n}" ${n === p && !aria ? 'aria-current="page"' : ""} ${aria} ${n < 1 || n > pages || (aria && n === p) ? "disabled" : ""}>${label}</button>`;
+    const want = new Set([1, pages, p - 1, p, p + 1]);
+    if (p <= 3) [2, 3, 4].forEach((n) => want.add(n));
+    if (p >= pages - 2) [pages - 3, pages - 2, pages - 1].forEach((n) => want.add(n));
+    const nums = [...want].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+    let out = "", prev = 0;
+    for (const n of nums) { if (n - prev > 1) out += '<span class="gap">…</span>'; out += btn(n, n); prev = n; }
+    const sizes = [10, 25, 50, 100].map((n) => `<option value="${n}" ${n === state.pageSize ? "selected" : ""}>${n}</option>`).join("");
+    return `<span class="pager"><span>Showing <b>${fmt(first + 1)}–${fmt(Math.min(first + state.pageSize, total))}</b> of <b>${fmt(total)}</b></span>`
+      + `<label>Rows per page <select id="page-size">${sizes}</select></label>`
+      + (pages > 1 ? `<span class="pages" role="navigation" aria-label="Session pages">${btn(1, "«", 'aria-label="First page"', "edge")}${btn(p - 1, "‹ Prev", 'aria-label="Previous page"')}${out}${btn(p + 1, "Next ›", 'aria-label="Next page"')}${btn(pages, "»", 'aria-label="Last page"', "edge")}</span>` : "")
+      + "</span>";
+  }
   function renderTable(runs) {
     const { key, dir } = state.sort;
     const rows = [...runs].sort((a, b) => { const x = val(a, key), y = val(b, key); return (x > y ? 1 : x < y ? -1 : 0) * dir; });
     $("#runs thead").innerHTML = `<tr>${COLS.map(([k, l, n]) => `<th class="${n ? "num" : ""}" data-sort="${k}">${l}${k === key ? (dir > 0 ? " ▲" : " ▼") : ""}</th>`).join("")}</tr>`;
-    $("#runs tbody").innerHTML = rows.slice(0, state.limit).map((r, i) => `<tr data-i="${i}"><td class="muted">${esc(r.run_id.length > 14 ? r.run_id.slice(0, 8) + "…" + r.run_id.slice(-4) : r.run_id)}</td><td class="prompt" title="${esc(r.prompt)}">${esc(r.prompt || r.title || "—")}</td><td>${esc(r.agent)}</td><td>${esc(r.model)}</td><td>${esc(r.workspace)}</td><td class="num">${fmt(r.steps)}</td><td class="num">${short(val(r, "tokens"))}</td><td class="num">${val(r, "hit").toFixed(0)}%</td><td class="num">${fmt(r.tool_calls)}</td><td>${esc(r.skills.join(", ")) || '<span class="muted">—</span>'}</td><td>${pill(r.health)}</td><td class="muted">${esc((r.started || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") || `<tr><td colspan="${COLS.length}" class="empty">No sessions match these filters.</td></tr>`;
-    $("#runs-foot").innerHTML = rows.length > state.limit ? `Showing ${state.limit} of ${fmt(rows.length)}. <button class="btn" id="more">Show more</button>` : `${fmt(rows.length)} shown.`;
+    // Back to page 1 whenever the filters, search, granularity or sort change; a background refresh keeps the page.
+    const sig = JSON.stringify([state.days, state.from, state.to, state.gran, state.q, state.agent, state.model, state.health, state.machine, key, dir]);
+    if (sig !== state.tableSig) { state.tableSig = sig; state.page = 1; }
+    const pages = Math.max(1, Math.ceil(rows.length / state.pageSize));
+    state.page = Math.min(Math.max(1, state.page), pages);
+    const first = (state.page - 1) * state.pageSize;
+    $("#runs tbody").innerHTML = rows.slice(first, first + state.pageSize).map((r, j) => `<tr data-i="${first + j}"><td class="muted">${esc(r.run_id.length > 14 ? r.run_id.slice(0, 8) + "…" + r.run_id.slice(-4) : r.run_id)}</td><td class="prompt" title="${esc(r.prompt)}">${esc(r.prompt || r.title || "—")}</td><td>${esc(r.agent)}</td><td>${esc(r.model)}</td><td>${esc(r.workspace)}</td><td class="num">${fmt(r.steps)}</td><td class="num">${short(val(r, "tokens"))}</td><td class="num">${val(r, "hit").toFixed(0)}%</td><td class="num">${fmt(r.tool_calls)}</td><td>${esc(r.skills.join(", ")) || '<span class="muted">—</span>'}</td><td>${pill(r.health)}</td><td class="muted">${esc((r.started || "").replace("T", " ").slice(0, 16))}</td></tr>`).join("") || `<tr><td colspan="${COLS.length}" class="empty">No sessions match these filters.</td></tr>`;
+    $("#runs-foot").innerHTML = rows.length ? pager(rows.length, first, pages) : "";
     $("#runs tbody").onclick = (e) => { const tr = e.target.closest("tr[data-i]"); if (tr) inspect(rows[+tr.dataset.i]); };
-    const more = $("#more"); if (more) more.onclick = () => { state.limit += 200; renderTable(runs); };
+    $("#runs-foot").onclick = (e) => {
+      const b = e.target.closest("button[data-page]");
+      if (!b || b.disabled) return;
+      state.page = +b.dataset.page;
+      renderTable(runs);
+      const top = $("#runs-wrap").getBoundingClientRect().top;
+      if (top < 0) window.scrollBy({ top: top - 80 });          // keep the table's header in view after paging
+    };
+    $("#runs-foot").onchange = (e) => {
+      if (e.target.id !== "page-size") return;
+      state.pageSize = +e.target.value;
+      state.page = Math.floor(first / state.pageSize) + 1;      // stay near the rows that were on screen
+      try { localStorage.setItem("ao-page-size", e.target.value); } catch (err) {}
+      renderTable(runs);
+    };
   }
   function inspect(r) {
     const secs = Math.max(0, (Date.parse(r.ended) - Date.parse(r.started)) / 1000);
@@ -477,7 +521,7 @@ a { color: var(--accent); }
   $("#from").onchange = (e) => { state.from = e.target.value; press($("#win"), null); render(); };
   $("#to").onchange = (e) => { state.to = e.target.value; press($("#win"), null); render(); };
   $("#gran").onclick = (e) => { const b = e.target.closest("[data-g]"); if (!b) return; state.gran = b.dataset.g; press($("#gran"), b); render(); };
-  let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value.trim(); state.limit = 100; render(); }, 150); };
+  let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value.trim(); render(); }, 150); };
   $("#f-agent").onchange = (e) => { state.agent = e.target.value; render(); };
   $("#f-machine").onchange = (e) => { state.machine = e.target.value; render(); };
   $("#f-model").onchange = (e) => { state.model = e.target.value; render(); };
@@ -490,7 +534,7 @@ a { color: var(--accent); }
   $("#inspect-close").onclick = () => $("#inspect").close();
   let rt; window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(render, 200); });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && +$("#sync-every").value) load(false); });
-  try { const t = localStorage.getItem("ao-theme"); if (t) document.documentElement.dataset.theme = t; const s = localStorage.getItem("ao-sync"); if (s && [...$("#sync-every").options].some((o) => o.value === s)) { $("#sync-every").value = s; state.pickedInterval = true; } } catch (e) {}
+  try { const t = localStorage.getItem("ao-theme"); if (t) document.documentElement.dataset.theme = t; const ps = +localStorage.getItem("ao-page-size"); if ([10, 25, 50, 100].includes(ps)) state.pageSize = ps; const s = localStorage.getItem("ao-sync"); if (s && [...$("#sync-every").options].some((o) => o.value === s)) { $("#sync-every").value = s; state.pickedInterval = true; } } catch (e) {}
   schedule();
   load(false);
 })();
