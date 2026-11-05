@@ -1,6 +1,7 @@
 # TokenTrail
 
 [![CI](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/tokentrail.svg)](https://pypi.org/project/tokentrail/)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 **See what your AI agents actually do with your tokens.** TokenTrail is local-first observability for AI agents. It shows how they spend tokens, call tools and load skills, where they get stuck, and how all of that turns into shipped code. It runs on your own machine.
@@ -102,7 +103,7 @@ tokentrail                          # open the dashboard at http://127.0.0.1:876
 tokentrail service install          # optional: keep syncing in the background at login
 ```
 
-Until the first release is on PyPI, install from GitHub with `pip install git+https://github.com/sunil-bodeddula-pro/tokentrail`. From a source checkout, run `pip install -e .` or use `PYTHONPATH=src python3 -m tokentrail …`.
+From a source checkout, run `pip install -e .` or use `PYTHONPATH=src python3 -m tokentrail …`.
 
 `tokentrail init` asks three questions; `--yes` accepts the defaults:
 
