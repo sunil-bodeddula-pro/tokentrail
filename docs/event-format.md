@@ -2,7 +2,7 @@
 
 Any agent can appear in the dashboard by writing this format. No code changes to the tool are needed.
 
-- **Where:** `*.jsonl` files under `~/.tokentrail/events/`, any depth (change it with `--events-dir`). One file per session is simplest; never split one session across files.
+- **Where:** `*.jsonl` files under `~/.tokentrail/events/`, any depth (change it with `events_dir` in the config file). One file per session is simplest; never split one session across files.
 - **What:** one JSON object per line, in time order. Unknown fields are ignored. Lines with an unknown `event` or no `session_id` are skipped.
 - **From Python:** `tokentrail.emit.EventLog` writes it for you.
 
@@ -17,7 +17,7 @@ Any agent can appear in the dashboard by writing this format. No code changes to
 | `workspace` | path | any | Working directory; used for the Workspace column and to find git repositories |
 | `text` | string | `prompt`, `title` | The person's request (first 400 characters kept), or the conversation title |
 | `chars` | int | `prompt`, `tool_result` | Length of the prompt or tool output, for the token anatomy chart |
-| `model` | string | `response` | Model name; also selects the price (see `--pricing`) |
+| `model` | string | `response` | Model name; also selects the price (see Pricing in the README) |
 | `message_id` | string | `response` | De-duplicates a response logged in several pieces |
 | `usage` | object | `response` | `input`, `output`, `cache_read`, `cache_write`, `thinking` token counts. `input` excludes cached tokens; `output` includes `thinking` |
 | `tool` | string | `tool_call` | Tool name. Names containing write, edit, replace, create_file or apply_patch count as file writes |

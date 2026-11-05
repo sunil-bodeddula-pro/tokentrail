@@ -1,94 +1,165 @@
 # TokenTrail
 
-**TokenTrail** (`tokentrail`) is a zero-dependency Python 3.12+ telemetry collector, analytics engine, CLI and local web dashboard for AI coding agents. It reads your agents' local session logs and the git history of the repositories they worked in. It shows how your agents reason, spend tokens, call tools and load skills, and how that spend turns into shipped code.
+[![CI](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml/badge.svg)](https://github.com/sunil-bodeddula-pro/tokentrail/actions/workflows/ci.yml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-It works with any agent:
-- **Claude Code** is read out of the box.
-- **Any other agent** can appear by writing the [generic event format](docs/event-format.md), or through a small adapter.
+**TokenTrail** is observability for AI agents that runs on your own machine. It shows how your agents reason, spend tokens, call tools and load skills, and how that spend turns into shipped code.
 
-Everything stays on your machine. There's no database, no cloud backend and no network calls.
+- **It works with any agent.** Claude Code is read out of the box. Any other agent shows up once it writes the [generic event format](docs/event-format.md) (one JSON line per event), or once someone adds a small adapter.
+- **It keeps its own record.** Every 30 seconds TokenTrail copies what's new into a store made of plain JSON files. Clearing your agent's history doesn't lose anything, and nothing is parsed twice.
+- **Remote copies are optional.** You can mirror the store to `gs://`, `s3://` or a shared folder, so several machines show up on one dashboard. Prompt text is removed before upload unless you choose to keep it.
+- **No extra software.** It needs only Python 3.12+ and its standard library. There's no database and no server to run, and nothing leaves your machine unless you set a remote.
 
 ---
 
 ## Table of contents
 
-1. [Quick start and CLI](#1-quick-start-and-cli)
-2. [Architecture and auto-sync](#2-architecture-and-auto-sync)
-3. [Dashboard guide](#3-dashboard-guide)
-4. [Engineer's playbook](#4-engineers-playbook)
-5. [Adding an agent](#5-adding-an-agent)
-6. [Pricing](#6-pricing)
-7. [Co-located agent skill](#7-co-located-agent-skill)
-8. [Testing](#8-testing)
+1. [Install and quick start](#1-install-and-quick-start)
+2. [Commands and settings](#2-commands-and-settings)
+3. [The store, remote mirrors and privacy](#3-the-store-remote-mirrors-and-privacy)
+4. [Architecture](#4-architecture)
+5. [Dashboard guide](#5-dashboard-guide)
+6. [Engineer's playbook](#6-engineers-playbook)
+7. [Adding an agent](#7-adding-an-agent)
+8. [Pricing](#8-pricing)
+9. [Co-located agent skill](#9-co-located-agent-skill)
+10. [Testing and contributing](#10-testing-and-contributing)
 
 ---
 
-## 1. Quick start and CLI
-
-Run from the project root:
+## 1. Install and quick start
 
 ```bash
-# Live dashboard on http://127.0.0.1:8765, re-scanning every 30 s
-PYTHONPATH=src python3 -m tokentrail.cli --port 8765 --sync-interval 30
+pip install tokentrail              # or: pipx install tokentrail
+pip install 'tokentrail[gcs]'       # add Google Cloud Storage support
+pip install 'tokentrail[s3]'        # add AWS S3 (and S3-compatible) support
 
-# Terminal summary for the last 30 days
-PYTHONPATH=src python3 -m tokentrail.cli --summary --days 30
-
-# Export aggregated telemetry (JSON) or one row per task run (CSV)
-PYTHONPATH=src python3 -m tokentrail.cli --export-json /tmp/agents.json --days 180
-PYTHONPATH=src python3 -m tokentrail.cli --export-csv /tmp/agent_runs.csv --days 180
+tokentrail init                     # choose the store folder and an optional remote; runs the first sync
+tokentrail                          # open the dashboard at http://127.0.0.1:8765 (it keeps syncing while open)
+tokentrail service install          # optional: keep syncing in the background at login
 ```
 
-To get an `tokentrail` command instead, run `pip install -e .`. It installs nothing else.
+From a source checkout, run `pip install -e .` or use `PYTHONPATH=src python3 -m tokentrail …`.
 
-| Option | Default | Meaning |
-| :--- | :--- | :--- |
-| `--days N` | 180 | How far back to read (0 = everything) |
-| `--adapters` | `claude-code,generic` | Which sources to read |
-| `--claude-dir` | `~/.claude/projects` | Claude Code transcripts |
-| `--events-dir` | `~/.tokentrail/events` | Generic events from any agent |
-| `--pricing FILE` | built-in table | Override prices per model (section 6) |
-| `--repo PATH` | (none) | Extra git repository to include; repeatable |
-| `--author-email E` | your `git config user.email` | Count commits by this email as yours; repeatable |
-| `--ai-tag REGEX` | (none) | Extra pattern marking AI-assisted commits, besides `Co-Authored-By` trailers |
-| `--no-git`, `--no-cache` | off | Skip git history; skip the on-disk parse cache |
-| `--host`, `--port`, `--sync-interval` | `127.0.0.1`, 8765, 30 | Server settings; `--sync-interval 0` turns background sync off |
+`tokentrail init` asks three questions; `--yes` accepts the defaults:
 
-The server binds to `127.0.0.1`. The data includes your prompts, so don't expose it on a network.
+| Question | Default |
+| :--- | :--- |
+| Local store folder | `~/.tokentrail/store` |
+| Remote mirror | none (`gs://bucket/path`, `s3://bucket/path`, or a folder) |
+| Seconds between syncs | 30 |
 
 ---
 
-## 2. Architecture and auto-sync
+## 2. Commands and settings
+
+| Command | What it does |
+| :--- | :--- |
+| `tokentrail init` | Save settings, check the remote is reachable, run the first sync. `--service` also installs the background service; `--keep-prompts-remote` uploads prompt text too |
+| `tokentrail` or `tokentrail dashboard` | Pull other machines' data, sync, and serve the dashboard. `--port`, `--host`, `--interval` (0 = read the store only) |
+| `tokentrail daemon` | Sync on a timer with no dashboard. This is what the service runs |
+| `tokentrail sync` | Sync once and exit |
+| `tokentrail pull` | Download other machines' data from the remote, and restore any of this machine's files missing locally |
+| `tokentrail status` | Where data lives, how much there is, which machines, when it last synced |
+| `tokentrail summary --days 30` | Headline numbers in the terminal |
+| `tokentrail export --json F --csv F` | Everything as JSON (runs, commits, KPIs, breakdowns, ROI), or one CSV row per task run |
+| `tokentrail service install \| uninstall \| print` | Run `daemon` at login: a systemd user unit (Linux), a launchd agent (macOS) or a Task Scheduler task (Windows). `print` shows what would be installed |
+
+Options that work with every command except `service`: `--config FILE`, `--store DIR`, `--remote URI`, `--no-remote`, `--days N` (0 = everything) and `--no-git`.
+
+Settings live in `~/.config/tokentrail/config.json` (`%APPDATA%\tokentrail\config.json` on Windows; `TOKENTRAIL_CONFIG` points elsewhere). Command-line options win over the file.
+
+| Setting | Default | Meaning |
+| :--- | :--- | :--- |
+| `store` | `~/.tokentrail/store` | The local store, the system of record |
+| `remote` | `""` | Optional mirror: `gs://…`, `s3://…`, `file://…` or a folder path |
+| `redact_remote` | `true` | Remove prompt text and titles before upload |
+| `sync_interval` | 30 | Seconds between syncs |
+| `machine_id` | `""` | Blank: a stable name, your hostname plus four hex characters, is created and kept in `<store>/.machine-id` |
+| `adapters` | `["claude-code", "generic"]` | Which sources to read |
+| `claude_dir` | `~/.claude/projects` | Claude Code transcripts |
+| `events_dir` | `~/.tokentrail/events` | Generic events from any agent |
+| `pricing` | `""` | JSON file overriding prices per model ([Pricing](#8-pricing)) |
+| `repos` | `[]` | Extra git repositories to include, besides those the agents worked in |
+| `author_emails` | `[]` | Count commits by these emails as yours (default: `git config user.email`) |
+| `ai_tag` | `""` | Extra regex marking AI-assisted commits, besides `Co-Authored-By` trailers |
+| `git_days` | 365 | How much git history to read |
+
+---
+
+## 3. The store, remote mirrors and privacy
+
+### The store
+
+The store is a folder of plain JSON files. There is one file per conversation, written atomically (to a temporary file, then renamed into place):
 
 ```
-agent logs ──▶ adapter ──▶ Events ──▶ segment.build_runs ──▶ TaskRun records ──▶ analytics / API / dashboard
-git repos  ──▶ git_collector ──▶ Commit records ─────────────────────────────────┘
+~/.tokentrail/store/
+  .machine-id                      this machine's name
+  .mirror-state.json               what has been uploaded and downloaded (never uploaded)
+  v1/<machine>/
+    runs/<agent>/<conversation>.json   the task runs of one conversation
+    commits/<repo>.json                commits from that repository
+    manifest.json                      counts and the last sync time
+    sources.json                       which agent files have been read, by size and mtime (never uploaded)
+  v1/<other-machine>/…                 pulled from the remote
+```
+
+- **Incremental:** a sync re-reads an agent file only when its size or modification time changes, or when prices change. A quiet sync takes milliseconds and costs no tokens; TokenTrail never calls a model.
+- **Never deletes:** when an agent's history file disappears, its conversations stay in the store. When a file shrinks, the stored runs and the new runs are merged, so nothing is lost.
+- **Git** is re-read every five minutes, not every sync, and commits are merged by SHA.
+
+### Remote mirrors
+
+| Remote | Needs | Credentials |
+| :--- | :--- | :--- |
+| `gs://bucket/prefix` | `pip install 'tokentrail[gcs]'` | Application Default Credentials (`gcloud auth application-default login`, or a service account) |
+| `s3://bucket/prefix` | `pip install 'tokentrail[s3]'` | The usual AWS chain (`AWS_PROFILE`, environment variables, SSO, instance roles). For MinIO, Cloudflare R2 and other S3-compatible stores, set `AWS_ENDPOINT_URL` |
+| `file:///path` or a path | nothing | A network drive or a synced folder |
+
+- **Push:** after each sync, this machine's changed files are uploaded. Files are compared by MD5, so an unchanged file is never sent twice.
+- **Pull:** when the dashboard starts, and every five minutes while it runs, other machines' new files are downloaded. Each machine writes only under its own `v1/<machine>/` prefix, so machines never overwrite each other.
+- **Restore:** `tokentrail pull` on a machine whose store was wiped brings its files back from the remote. They come back redacted if they were uploaded redacted.
+
+### Privacy
+
+- **Local only by default.** The dashboard binds to `127.0.0.1`. Your prompts are in the data, so don't expose the dashboard on a network.
+- **Redacted remotes.** With `redact_remote` on (the default), the `prompt` and `title` of every run are emptied before upload, and the run is marked `redacted`. Token counts, tool names, models, workspaces and timings are still uploaded.
+- **Use a private bucket.** Workspace and repository names, commit subjects and author emails are not redacted.
+- **No telemetry about you.** TokenTrail makes no network calls except to the remote you configure.
+
+---
+
+## 4. Architecture
+
+```
+agent logs ──▶ adapter ──▶ Events ──▶ segment.build_runs ──▶ TaskRun records ──┐
+git repos  ──▶ git_collector ──▶ Commit records ───────────────────────────────┤
+                                                                               ▼
+                         Syncer (every 30 s) ──▶ Store (JSON files) ◀──▶ Mirror (gs:// · s3:// · folder)
+                                                      │
+                                                      ▼
+                                 TelemetryState ──▶ HTTP API ──▶ dashboard, summary, export
 ```
 
 - **Adapters** (`adapters/`) turn one agent's logs into normalized `Event`s: prompt, response, tool call, tool result and title. This is the only agent-specific code.
 - **Segmentation** (`segment.py`) groups events into task runs, totals tokens, tools, errors, writes and skills, prices each step, and classifies health.
-- **Analytics** (`analytics.py`) computes the KPIs for the CLI and the JSON export. The dashboard computes the same figures in the browser so its filters respond instantly.
+- **Syncer, Store and Mirror** (`sync.py`, `store.py`, `mirror.py`) keep the durable record described above.
+- **Analytics** (`analytics.py`) computes the KPIs for the CLI and the JSON export. The dashboard computes the same figures in the browser, so its filters respond instantly.
 
 | Source | Default path | What's extracted |
 | :--- | :--- | :--- |
 | Claude Code | `~/.claude/projects/<project>/<session>.jsonl` | Prompts, per-response token usage (input, output, cache read and write, reasoning), model, tool calls and their errors, skills (`Skill` tool, or reads of `*/skills/<name>/SKILL.md`), subagent steps, working directory, title |
 | Generic events | `~/.tokentrail/events/**/*.jsonl` | The same fields, written by any agent ([format](docs/event-format.md)) |
-| Git history | Repositories found from the sessions' working directories, plus `--repo` | Conventional commit type and scope, linked issues (`#123`, `ABC-123`, `b/123`), your commits, and AI-credited commits (`Co-Authored-By: Claude / Copilot / Gemini / Cursor / Codex…`, or `--ai-tag`) |
+| Git history | Repositories found from the sessions' working directories, plus `repos` | Conventional commit type and scope, linked issues (`#123`, `ABC-123`, `b/123`), your commits, and AI-credited commits (`Co-Authored-By: Claude / Copilot / Gemini / Cursor / Codex…`, or `ai_tag`) |
 
-### Incremental auto-sync
-
-- **Parse cache:** each log file is cached by size and nanosecond modification time. A sync re-parses only files that changed, so a quiet sync takes milliseconds.
-- **Disk cache:** the cache is saved to `~/.cache/tokentrail/runs.json`, so restarting is fast too. Changing prices invalidates it automatically.
-- **Two refresh loops:**
-  - The server's background thread refreshes its snapshot every `--sync-interval` seconds.
-  - The browser polls `/api/telemetry` at the interval you choose (15 s, 30 s, 60 s, 5 min or off), and also when you switch back to the tab.
-  - **Sync now** forces an immediate re-scan through `POST /api/sync`.
+The browser polls `/api/telemetry` at the interval you choose (15 s, 30 s, 60 s, 5 min or off), and again when you switch back to the tab. **Sync now** forces an immediate sync through `POST /api/sync`.
 
 ---
 
-## 3. Dashboard guide
+## 5. Dashboard guide
 
-### 3.1 Top bar
+### 5.1 Top bar
 
 - **Mode tabs:**
   - **TokenTrail:** sessions, tokens, models, skills and tool friction.
@@ -97,7 +168,7 @@ git repos  ──▶ git_collector ──▶ Commit records ──────�
 - **Auto-sync and Sync now:** how often the page refreshes, the time of the last sync, and a manual re-scan button.
 - **Theme toggle:** dark (the default) or light. Your choice is remembered.
 
-### 3.2 Filter bar
+### 5.2 Filter bar
 
 - **Time window:** Today, Last 7 days, Last 30 days or All, or a custom From/To range. It applies to every KPI, chart and table.
 - **Granularity:**
@@ -105,8 +176,10 @@ git repos  ──▶ git_collector ──▶ Commit records ──────�
   - **Conversations** merge a whole thread into one record. Use this to measure what a feature cost end to end.
 - **Search:** case-insensitive, across run ID, prompt, title, model, workspace, agent, skills and tool names.
 - **Agent, model and health outcome filters:** narrow down to one agent, one model or one outcome to see why runs struggled.
+- **Machine filter:** appears when the store holds more than one machine's data.
+- **Store line:** under the top bar, the store path, this machine's name, the remote and the last sync.
 
-### 3.3 KPI cards
+### 5.3 KPI cards
 
 | Card | Definition | How to read it |
 | :--- | :--- | :--- |
@@ -117,7 +190,7 @@ git repos  ──▶ git_collector ──▶ Commit records ──────�
 | High velocity rate | Share of runs finishing in **≤ 30 steps with 0 errors** | One-shot efficiency. 50% or more at task-run granularity means prompts and skills lead the agent straight to the right files |
 | Tool invocations | Total tool calls, and **tool error rate** = `errors / max(tool_calls, steps)` | Target **< 1.5%**. Spikes usually mean failing builds or tests, missing environment variables, or stale edit targets |
 
-### 3.4 The ten charts
+### 5.4 The ten charts
 
 Chart sub-tabs filter them: All (10), Tokens (4), Effectiveness (4), Time and latency (3), Tools and skills (3).
 
@@ -141,19 +214,19 @@ Chart sub-tabs filter them: All (10), Tokens (4), Effectiveness (4), Time and la
 9. **Daily activity and token volume** (wide): sessions per day for the last 14 active days, with tokens as a line.
 10. **Workspace distribution and turn latency** (wide): sessions per repository, with average steps and seconds per step.
 
-### 3.5 Session explorer and inspector
+### 5.5 Session explorer and inspector
 
 - **Table:** run ID, prompt, agent, model, workspace, steps, tokens, cache hit, tools, skills, health and start time. Click a column to sort.
-- **Inspector:** click a row to open it. It shows the full prompt, every tool with its call count, skills, writes and errors, the longest repeat, duration and seconds per step, the token split, estimated cost and cache savings.
+- **Inspector:** click a row to open it. It shows the machine, the full prompt (or "redacted" for runs pulled from a redacted remote), every tool with its call count, skills, writes and errors, the longest repeat, duration and seconds per step, the token split, estimated cost and cache savings.
 
-### 3.6 Code Deliverables
+### 5.6 Code Deliverables
 
 - **KPIs:** matching commits, your commits, AI-credited commits and linked issues.
 - **Charts:** commits by repository, and by conventional commit type.
 - **Table:** recent commits.
 - **Filters:** the time window and search apply here too.
 
-### 3.7 Cross-Domain ROI
+### 5.7 Cross-Domain ROI
 
 - **KPIs:**
   - Tokens per commit of yours.
@@ -167,7 +240,7 @@ Sessions and commits are matched by day only. Read it as correlation, not attrib
 
 ---
 
-## 4. Engineer's playbook
+## 6. Engineer's playbook
 
 | Signal | Likely cause | What to do |
 | :--- | :--- | :--- |
@@ -180,7 +253,7 @@ Sessions and commits are matched by day only. Read it as correlation, not attrib
 
 ---
 
-## 5. Adding an agent
+## 7. Adding an agent
 
 There are two ways, and neither touches the analytics.
 
@@ -195,11 +268,11 @@ There are two ways, and neither touches the analytics.
    log.tool_result(error=False, chars=420)
    ```
 
-2. **Write an adapter** in `src/tokentrail/adapters/`: a class with `name`, `sources()` (files to read) and `events(path)` (a list of `Event`). Register it in `ADAPTERS`, and add a branch to `make_adapters` in `cli.py`. `claude_code.py` is a complete example in about 100 lines.
+2. **Write an adapter** in `src/tokentrail/adapters/`: a class with `name`, `sources()` (files to read) and `events(path)` (a list of `Event`). Register it in `ADAPTERS`, add a branch to `make_adapters` in `cli.py`, and add a fixture test. [CONTRIBUTING.md](CONTRIBUTING.md) walks through it. `claude_code.py` is a complete example in about 100 lines.
 
 ---
 
-## 6. Pricing
+## 8. Pricing
 
 Costs are **estimates at API list prices**, calculated per response from the model name.
 
@@ -212,11 +285,11 @@ Costs are **estimates at API list prices**, calculated per response from the mod
 {"gpt-x": [1.25, 10.0, 0.125, 1.25], "local-llama": [0, 0, 0, 0]}
 ```
 
-Each value is `[input, output, cache_read, cache_write]` in US dollars per million tokens. Matching is by prefix, so `claude-opus-5-5` covers dated variants. Pass the file with `--pricing prices.json`.
+Each value is `[input, output, cache_read, cache_write]` in US dollars per million tokens. Matching is by prefix, so `claude-opus-5-5` covers dated variants. Point the `pricing` setting at the file. Changing prices re-prices every agent file that still exists on the next sync; conversations whose source file is gone keep the prices they were stored with.
 
 ---
 
-## 7. Co-located agent skill
+## 9. Co-located agent skill
 
 `skills/tokentrail/` is an agent skill. Copy or link it into your agent's skills folder so the agent can run the tool and interpret it for you.
 
@@ -226,11 +299,17 @@ Each value is `[input, output, cache_read, cache_write]` in US dollars per milli
 
 ---
 
-## 8. Testing
+## 10. Testing and contributing
 
 ```bash
 python3 -m unittest discover -s tests -v     # standard library only
 python3 -m pytest -v                         # also works, if pytest is installed
 ```
 
-The tests write fixtures to a temporary directory. They never read your real agent logs or touch the network.
+The tests write fixtures to a temporary directory. They never read your real agent logs or touch the network: the GCS and S3 backends are tested against in-memory fakes.
+
+Contributions are welcome, especially adapters for other agents. See [CONTRIBUTING.md](CONTRIBUTING.md), and [SECURITY.md](SECURITY.md) for reporting a vulnerability.
+
+## License
+
+Apache License 2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).

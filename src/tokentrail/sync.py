@@ -48,7 +48,7 @@ class Syncer:
                         st = os.stat(path)
                     except OSError:
                         continue
-                    key = [st.st_size, st.st_mtime_ns]
+                    key = [st.st_size, st.st_mtime_ns, self.pricing.fingerprint]
                     entry = seen.get(path)
                     if entry and entry.get("key") == key:
                         unchanged += 1

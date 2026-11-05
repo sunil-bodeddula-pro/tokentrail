@@ -5,8 +5,9 @@
 | Field | Meaning |
 | :--- | :--- |
 | `run_id` | `<conversation_id>#<n>`: the n-th prompt in the conversation |
-| `conversation_id`, `agent`, `title` | The conversation, the agent that ran it, and its title if the agent records one |
-| `prompt` | The person's request (first 400 characters) |
+| `conversation_id`, `agent`, `machine`, `title` | The conversation, the agent that ran it, the machine whose store it came from, and its title if the agent records one |
+| `prompt` | The person's request (first 400 characters). Empty when `redacted` |
+| `redacted` | `true` when the run was pulled from a remote that strips prompt text and titles |
 | `model`, `models` | Most-used model, and every model used, most-used first. `no response` if the agent never answered |
 | `workspace`, `cwd` | Repository name (nearest `.git`), and working directory |
 | `started`, `ended` | First and last event time, ISO 8601 UTC |
@@ -44,8 +45,12 @@ High-Velocity and Positive count as healthy.
 
 | Method and path | Returns |
 | :--- | :--- |
-| `GET /api/telemetry` | `{generated, window_days, stats, health_order, runs, commits}` |
-| `POST /api/sync` | Re-scans now and returns the same shape |
+| `GET /api/telemetry` | `{generated, store, health_order, runs, commits}` |
+| `POST /api/sync` | Syncs now and returns the same shape |
 | `GET /api/health` | `{"ok": true}` |
 
-`stats` = `{files, parsed, unchanged, runs, ms}` for the last sync.
+`store` = `{path, machine, machines, remote, last_sync, last_pull}`. `last_sync` = `{at, files, parsed, unchanged, conversations_changed, repos_changed, pushed, ms}`.
+
+## Store files
+
+`<store>/v1/<machine>/runs/<agent>/<conversation>.json` holds `{agent, conversation_id, machine, source, updated, runs: [TaskRun…]}` for one conversation; `commits/<repo>.json` holds `{repo, machine, updated, commits: [Commit…]}`. The files are plain JSON, safe to read directly.

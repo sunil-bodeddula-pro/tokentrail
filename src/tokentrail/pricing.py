@@ -3,11 +3,12 @@
 Defaults are Anthropic's first-party API list prices as published in its model documentation (cached 2026-10-06).
 Cache reads use the published rate where one is given, otherwise 10% of input; cache writes use 125% of input (the
 five-minute cache write rate). Prices change and differ by platform and plan: override any of them with a JSON file
-(--pricing FILE) shaped like DEFAULT_PRICES. A model with no matching entry is reported as unpriced, never guessed.
+(the `pricing` setting) shaped like DEFAULT_PRICES. A model with no matching entry is reported as unpriced, never guessed.
 Matching is by prefix after lower-casing, so "claude-opus-5-5-20260101" matches "claude-opus-5-5".
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 
@@ -37,6 +38,8 @@ class Pricing:
                 self.prices.update({k.lower(): v for k, v in json.load(fh).items()})
         # longest prefix first, so "claude-opus-5-5" wins over "claude-opus-5"
         self._keys = sorted(self.prices, key=len, reverse=True)
+        # changes when any price changes, so the syncer re-prices files it has already read
+        self.fingerprint = hashlib.md5(json.dumps(self.prices, sort_keys=True).encode()).hexdigest()[:12]
 
     def rates(self, model: str) -> list[float] | None:
         m = (model or "").lower()
