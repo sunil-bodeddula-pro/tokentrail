@@ -16,67 +16,69 @@
   --shadow: 0 1px 2px rgba(0,0,0,.08);
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
 button, select, input { font: inherit; color: inherit; }
 header { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 18px; background: var(--panel); border-bottom: 1px solid var(--line); }
-header h1 { margin: 0; font-size: 16px; white-space: nowrap; }
+header h1 { margin: 0; font-size: 18px; white-space: nowrap; }
 .tabs { display: flex; gap: 4px; flex-wrap: wrap; flex: 1; justify-content: center; }
-.tab { border: 1px solid var(--line); background: var(--panel-2); padding: 5px 12px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.tab { border: 1px solid var(--line); background: var(--panel-2); padding: 6px 14px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
 .tab[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); font-weight: 600; }
-.tab .n { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 999px; background: var(--line); }
-.sync { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); }
+.tab .n { margin-left: 6px; font-size: 12px; padding: 0 6px; border-radius: 999px; background: var(--line); }
+.sync { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--ink-2); }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-3); display: inline-block; }
 .dot.on { background: var(--good); box-shadow: 0 0 6px var(--good); }
-.btn { border: 1px solid var(--line); background: var(--panel-2); padding: 5px 10px; border-radius: 8px; cursor: pointer; }
+.btn { border: 1px solid var(--line); background: var(--panel-2); padding: 6px 12px; border-radius: 8px; cursor: pointer; }
 .btn:hover { border-color: var(--accent); }
-select, input[type=search], input[type=date] { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; }
-main { padding: 16px 18px 40px; max-width: 1500px; margin: 0 auto; }
-.filters { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-bottom: 14px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+select, input[type=search], input[type=date] { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+main { padding: 20px 24px 48px; max-width: 1440px; margin: 0 auto; }
+.filters { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; margin-bottom: 20px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-.seg button { border: 0; background: var(--panel-2); padding: 5px 10px; cursor: pointer; border-right: 1px solid var(--line); }
+.seg button { border: 0; background: var(--panel-2); padding: 6px 12px; cursor: pointer; border-right: 1px solid var(--line); }
 .seg button:last-child { border-right: 0; }
 .seg button[aria-pressed="true"] { background: var(--accent); color: var(--bg); font-weight: 600; }
 .filters input[type=search] { min-width: 220px; flex: 1; }
-.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); }
-.kpi .l { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
-.kpi .v { font-size: 26px; font-weight: 700; margin: 4px 0 2px; font-variant-numeric: tabular-nums; }
-.kpi .s { font-size: 12px; color: var(--ink-2); }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow); }
+.kpi .l { font-size: 13px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; }
+.kpi .v { font-size: 34px; line-height: 1.15; font-weight: 700; margin: 8px 0 6px; font-variant-numeric: tabular-nums; }
+.kpi .s { font-size: 14px; line-height: 1.5; color: var(--ink-2); }
 .kpi.good .v { color: var(--good); } .kpi.warn .v { color: var(--warn); } .kpi.bad .v { color: var(--bad); }
-.subtabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0 10px; }
-.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-bottom: 16px; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow); min-width: 0; }
+.subtabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 14px; }
+.charts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; box-shadow: var(--shadow); min-width: 0; }
 .card.wide { grid-column: 1 / -1; }
-.card h3 { margin: 0 0 2px; font-size: 14px; }
-.card .sub { margin: 0 0 8px; font-size: 12px; color: var(--ink-3); }
-.card .foot { margin: 6px 0 0; font-size: 12px; color: var(--ink-2); }
-.banner { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
+.card h3 { margin: 0 0 4px; font-size: 17px; }
+.card .sub { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--ink-2); }
+.card .foot { margin: 10px 0 0; font-size: 14px; color: var(--ink-2); }
+.banner { margin: 10px 0 0; padding: 8px 12px; border-radius: 8px; font-size: 14px; background: color-mix(in srgb, var(--bad) 15%, transparent); color: var(--bad); }
 svg { display: block; max-width: 100%; }
-svg text { fill: var(--ink-2); font-size: 11px; }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--ink-2); margin-top: 6px; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-.donutwrap { display: grid; grid-template-columns: 150px 1fr; gap: 12px; align-items: center; }
-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-th, td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
+svg text { fill: var(--ink-2); font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; color: var(--ink-2); margin-top: 10px; }
+.legend i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.donutwrap { display: grid; grid-template-columns: 190px 1fr; gap: 20px; align-items: center; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; white-space: nowrap; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-3); cursor: pointer; user-select: none; white-space: nowrap; position: sticky; top: 0; background: var(--panel); }
 td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 tbody tr { cursor: pointer; } tbody tr:hover { background: var(--panel-2); }
 .tablewrap { overflow-x: auto; max-height: 640px; overflow-y: auto; }
-.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
 .prompt { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .muted { color: var(--ink-3); }
 .empty { padding: 30px; text-align: center; color: var(--ink-3); }
 dialog { background: var(--panel); color: var(--ink); border: 1px solid var(--line); border-radius: 14px; max-width: 760px; width: calc(100% - 32px); padding: 18px 20px; }
 dialog::backdrop { background: rgba(0,0,0,.55); }
-dialog h2 { margin: 0 0 4px; font-size: 16px; }
-dialog dl { display: grid; grid-template-columns: 160px 1fr; gap: 6px 12px; margin: 12px 0; font-size: 13px; }
+dialog h2 { margin: 0 0 4px; font-size: 18px; }
+dialog dl { display: grid; grid-template-columns: 170px 1fr; gap: 8px 14px; margin: 14px 0; font-size: 14px; }
 dialog dt { color: var(--ink-3); } dialog dd { margin: 0; word-break: break-word; }
-dialog pre { white-space: pre-wrap; background: var(--panel-2); padding: 10px; border-radius: 8px; font-size: 12px; max-height: 200px; overflow: auto; }
+dialog pre { white-space: pre-wrap; background: var(--panel-2); padding: 12px; border-radius: 8px; font-size: 13px; max-height: 220px; overflow: auto; }
 .hide { display: none !important; }
-.storeline { margin: 0 0 10px; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+.storeline { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); overflow-wrap: anywhere; }
 .storeline b { color: var(--ink-2); font-weight: 600; }
 a { color: var(--accent); }
-@media (max-width: 700px) { header { padding: 10px 12px; position: static; } .tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; } .filters input[type=search] { flex-basis: 100%; } main { padding: 12px; } .charts { grid-template-columns: 1fr; } .donutwrap { grid-template-columns: 1fr; } dialog dl { grid-template-columns: 1fr; } .filters input[type=search] { min-width: 0; width: 100%; } }
+@media (max-width: 1100px) { .charts { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { .kpis { grid-template-columns: 1fr; gap: 12px; } .kpi, .card { padding: 16px 16px; } .kpi .v { font-size: 30px; } header { padding: 10px 12px; position: static; } .tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; } .filters input[type=search] { flex-basis: 100%; } main { padding: 12px; } .charts { grid-template-columns: 1fr; } .donutwrap { grid-template-columns: 1fr; } dialog dl { grid-template-columns: 1fr; } .filters input[type=search] { min-width: 0; width: 100%; } }
 </style>
 </head>
 <body>
@@ -252,41 +254,55 @@ a { color: var(--accent); }
       a0 = a1;
     }
     const legend = items.map((d) => `<span><i style="background:${d.c}"></i>${esc(d.k)} · ${opts.fmt ? opts.fmt(d.v) : fmt(d.v)} (${pct(d.v, total).toFixed(0)}%)</span>`).join("");
-    return `<div class="donutwrap"><svg viewBox="0 0 150 150" width="150" height="150" role="img" aria-label="${esc(opts.label || "")}">${paths}<text x="75" y="72" text-anchor="middle" style="font-size:16px;font-weight:700;fill:var(--ink)">${opts.center ?? fmt(total)}</text><text x="75" y="90" text-anchor="middle">${esc(opts.centerSub || "total")}</text></svg><div class="legend" style="flex-direction:column">${legend}</div></div>`;
+    return `<div class="donutwrap"><svg viewBox="0 0 150 150" width="190" height="190" role="img" aria-label="${esc(opts.label || "")}">${paths}<text x="75" y="72" text-anchor="middle" style="font-size:18px;font-weight:700;fill:var(--ink)">${opts.center ?? fmt(total)}</text><text x="75" y="92" text-anchor="middle" style="font-size:11px">${esc(opts.centerSub || "total")}</text></svg><div class="legend" style="flex-direction:column">${legend}</div></div>`;
   }
   function hbars(items, opts = {}) {
     if (!items.length) return `<div class="empty">No data in this window.</div>`;
-    const max = Math.max(...items.map((d) => d.v)), rowH = 22, labelW = opts.labelW || 150, W = opts.w || 520, H = items.length * rowH + 4;
+    const W = opts.w || halfW(), max = Math.max(...items.map((d) => d.v)), rowH = 30, labelW = Math.min(opts.labelW || 160, Math.round(W * 0.34)), H = items.length * rowH + 4;
     const rows = items.map((d, i) => {
-      const room = W - labelW - (items.some((x) => x.extra) ? 230 : 70), w = max ? (room * d.v) / max : 0, y = i * rowH + 2;
-      return `<text x="${labelW - 6}" y="${y + 14}" text-anchor="end">${esc(d.k.length > 24 ? d.k.slice(0, 23) + "…" : d.k)}</text><rect x="${labelW}" y="${y + 3}" width="${Math.max(w, 1)}" height="${rowH - 8}" rx="3" fill="${d.c || color(0)}"><title>${esc(d.k)}: ${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}</title></rect><text x="${labelW + w + 6}" y="${y + 14}">${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}${d.extra ? " · " + d.extra : ""}</text>`;
+      const room = W - labelW - (items.some((x) => x.extra) ? 250 : 80), w = max ? (Math.max(room, 40) * d.v) / max : 0, y = i * rowH + 2;
+      const maxChars = Math.floor(labelW / 7.5), name = shortName(d.k);
+      return `<text x="${labelW - 8}" y="${y + 19}" text-anchor="end">${esc(fitName(name, maxChars))}</text><rect x="${labelW}" y="${y + 5}" width="${Math.max(w, 1)}" height="${rowH - 10}" rx="3" fill="${d.c || color(0)}"><title>${esc(d.k)}: ${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}</title></rect><text x="${labelW + w + 8}" y="${y + 19}">${opts.fmt ? opts.fmt(d.v) : fmt(d.v)}${d.extra ? " · " + d.extra : ""}</text>`;
     }).join("");
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opts.label || "")}">${rows}</svg>`;
   }
   function vbars(items, opts = {}) {
     if (!items.length) return `<div class="empty">No data in this window.</div>`;
-    const W = opts.w || 520, H = opts.h || 200, pad = 28, bw = (W - pad) / items.length, series = opts.series || [{ key: "v", c: color(0) }];
+    const W = opts.w || halfW(), H = opts.h || 240, pad = 32, bw = (W - pad) / items.length, series = opts.series || [{ key: "v", c: color(0) }];
     const max = Math.max(1, ...items.flatMap((d) => series.map((s) => d[s.key] || 0)));
     let out = "";
     items.forEach((d, i) => {
       const group = Math.min(bw * 0.75, 70 * series.length), gw = group / series.length;
       series.forEach((s, j) => {
-        const v = d[s.key] || 0, h = ((H - 40) * v) / max, x = pad + i * bw + (bw - group) / 2 + j * gw;
+        const v = d[s.key] || 0, h = ((H - 44) * v) / max, x = pad + i * bw + (bw - group) / 2 + j * gw;
         out += `<rect x="${x}" y="${H - 22 - h}" width="${Math.max(gw - 2, 1)}" height="${h}" rx="2" fill="${s.c}"><title>${esc(d.k)} · ${esc(s.name || "")} ${opts.fmt ? opts.fmt(v) : fmt(v)}</title></rect>`;
+        if (gw >= 34 && v) out += `<text x="${x + (gw - 2) / 2}" y="${H - 27 - h}" text-anchor="middle" style="fill:var(--ink)">${opts.fmt ? opts.fmt(v) : fmt(v)}</text>`;
       });
-      const label = d.k.length > 12 ? d.k.slice(0, 11) + "…" : d.k;
-      if (items.length <= 16 || i % Math.ceil(items.length / 14) === 0) out += `<text x="${pad + i * bw + bw / 2}" y="${H - 6}" text-anchor="middle">${esc(label)}</text>`;
+      const fit = Math.max(4, Math.floor(bw / 8)), label = d.k.length > fit ? d.k.slice(0, fit - 1) + "…" : d.k;
+      if (bw >= 40 || i % Math.ceil(40 / bw) === 0) out += `<text x="${pad + i * bw + bw / 2}" y="${H - 4}" text-anchor="middle">${esc(label)}</text>`;
     });
     if (opts.line) {
       const lmax = opts.lineMax || Math.max(1, ...items.map((d) => d[opts.line.key] || 0));
-      const pts = items.map((d, i) => `${pad + i * bw + bw / 2},${H - 22 - ((H - 40) * (d[opts.line.key] || 0)) / lmax}`).join(" ");
-      out += `<polyline points="${pts}" fill="none" stroke="${opts.line.c}" stroke-width="2"/>` + items.map((d, i) => `<circle cx="${pad + i * bw + bw / 2}" cy="${H - 22 - ((H - 40) * (d[opts.line.key] || 0)) / lmax}" r="3.5" fill="${opts.line.c}"><title>${esc(d.k)} · ${esc(opts.line.name)} ${(d[opts.line.key] || 0).toFixed(1)}</title></circle>`).join("");
+      const pts = items.map((d, i) => `${pad + i * bw + bw / 2},${H - 22 - ((H - 44) * (d[opts.line.key] || 0)) / lmax}`).join(" ");
+      out += `<polyline points="${pts}" fill="none" stroke="${opts.line.c}" stroke-width="2"/>` + items.map((d, i) => `<circle cx="${pad + i * bw + bw / 2}" cy="${H - 22 - ((H - 44) * (d[opts.line.key] || 0)) / lmax}" r="3.5" fill="${opts.line.c}"><title>${esc(d.k)} · ${esc(opts.line.name)} ${(d[opts.line.key] || 0).toFixed(1)}</title></circle>`).join("");
     }
     out += `<line x1="${pad}" x2="${W}" y1="${H - 22}" y2="${H - 22}" stroke="var(--line)"/>`;
     const legend = series.length > 1 || opts.line ? `<div class="legend">${series.map((s) => `<span><i style="background:${s.c}"></i>${esc(s.name)}</span>`).join("")}${opts.line ? `<span><i style="background:${opts.line.c}"></i>${esc(opts.line.name)}</span>` : ""}</div>` : "";
     return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(opts.label || "")}">${out}</svg>${legend}`;
   }
-  const wideW = () => Math.max(520, Math.min(1400, ($("main").clientWidth || 1200) - 60));
+  // Charts are drawn at the card's real width so their text renders at its CSS size instead of being scaled down.
+  const innerW = () => ($("main").clientWidth || 1200) - (innerWidth <= 700 ? 32 : 44) - (innerWidth <= 700 ? 24 : 48);
+  // mcp__claude_ai_Claude_Docs__read → "Claude_Docs · read": the server and tool, without the shared prefix
+  const shortName = (k) => { const m = /^mcp__(?:claude_ai_)?(.+?)__(.+)$/.exec(k); return m ? `${m[1]} · ${m[2]}` : k; };
+  // Too long: shorten the server part first so the tool name stays readable ("Claude_D… · update").
+  const fitName = (name, n) => {
+    if (name.length <= n) return name;
+    const [server, tool] = name.split(" · ");
+    if (tool && tool.length + 5 < n) return `${server.slice(0, n - tool.length - 4)}… · ${tool}`;
+    return name.slice(0, n - 1) + "…";
+  };
+  const wideW = () => Math.max(320, innerW());
+  const halfW = () => Math.max(320, innerWidth > 1100 ? Math.floor((innerW() - 16 - 44) / 2) : innerW());
   const card = (id, title, sub, body, foot = "", cls = "") => `<div class="card ${cls}" data-chart="${id}"><h3>${title}</h3><p class="sub">${sub}</p>${body}${foot ? `<p class="foot">${foot}</p>` : ""}</div>`;
   const count = (runs, f) => { const m = new Map(); for (const r of runs) for (const [k, v] of f(r)) m.set(k, (m.get(k) || 0) + v); return [...m.entries()].sort((a, b) => b[1] - a[1]); };
   const groupBy = (runs, key) => { const m = new Map(); for (const r of runs) { const k = r[key] || "—"; if (!m.has(k)) m.set(k, []); m.get(k).push(r); } return m; };
@@ -340,7 +356,7 @@ a { color: var(--accent); }
     for (const r of runs) { const d = (r.started || "").slice(0, 10); if (!d) continue; const e = days.get(d) || { n: 0, t: 0 }; e.n++; e.t += r.input_tokens + r.cache_write_tokens + r.output_tokens; days.set(d, e); }
     const dl = [...days.entries()].sort().slice(-14);
     const maxN = Math.max(1, ...dl.map(([, e]) => e.n)), maxT = Math.max(1, ...dl.map(([, e]) => e.t));
-    out.daily = card("daily", "Daily activity and token volume", "Last 14 active days: sessions (bars) and tokens (line, scaled to the busiest day).", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.n, tk: (100 * e.t) / maxT })), { label: "Daily activity", series: [{ key: "v", name: "Sessions", c: color(0) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(1) }, lineMax: 100, h: 220, w: wideW() }), "", "wide");
+    out.daily = card("daily", "Daily activity and token volume", "Last 14 active days: sessions (bars) and tokens (line, scaled to the busiest day).", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.n, tk: (100 * e.t) / maxT })), { label: "Daily activity", series: [{ key: "v", name: "Sessions", c: color(0) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(1) }, lineMax: 100, h: 260, w: wideW() }), "", "wide");
 
     const ws = [...groupBy(runs, "workspace").entries()].map(([k, rs]) => { const steps = rs.reduce((a, r) => a + r.steps, 0); const secs = rs.reduce((a, r) => a + Math.max(0, (Date.parse(r.ended) - Date.parse(r.started)) / 1000), 0); return { k, v: rs.length, extra: `${(steps / rs.length).toFixed(1)} steps · ${steps ? (secs / steps).toFixed(1) : 0}s/step` }; }).sort((a, b) => b.v - a.v).slice(0, 12);
     out.workspace = card("workspace", "Workspace distribution and turn latency", "Sessions per repository, with average steps and seconds per step.", hbars(ws.map((d) => ({ ...d, c: color(2) })), { label: "Workspaces", labelW: 170, w: wideW() }), "", "wide");
@@ -402,7 +418,7 @@ a { color: var(--accent); }
     for (const r of runs) { const d = (r.started || "").slice(0, 10); const e = days.get(d) || { t: 0, c: 0 }; e.t += r.input_tokens + r.cache_write_tokens + r.output_tokens; days.set(d, e); }
     for (const c of mine) { const d = c.date.slice(0, 10); const e = days.get(d) || { t: 0, c: 0 }; e.c++; days.set(d, e); }
     const dl = [...days.entries()].filter(([d]) => d).sort().slice(-21), maxT = Math.max(1, ...dl.map(([, e]) => e.t)), maxC = Math.max(1, ...dl.map(([, e]) => e.c));
-    $("#rcharts").innerHTML = card("roi-daily", "Tokens and commits by day", "Bars: your commits. Line: agent tokens, as a share of the busiest day.", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.c, tk: (100 * e.t) / maxT })), { label: "Tokens and commits", series: [{ key: "v", name: "My commits", c: color(2) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(0) }, lineMax: 100, h: 230, w: wideW() }), "Correlation, not attribution: commits and agent sessions are matched by day only.", "wide");
+    $("#rcharts").innerHTML = card("roi-daily", "Tokens and commits by day", "Bars: your commits. Line: agent tokens, as a share of the busiest day.", vbars(dl.map(([d, e]) => ({ k: d.slice(5), v: e.c, tk: (100 * e.t) / maxT })), { label: "Tokens and commits", series: [{ key: "v", name: "My commits", c: color(2) }], line: { key: "tk", name: "Tokens (% of peak)", c: color(0) }, lineMax: 100, h: 260, w: wideW() }), "Correlation, not attribution: commits and agent sessions are matched by day only.", "wide");
   }
 
   /* ---------- glue ---------- */
