@@ -147,12 +147,12 @@ def cmd_init(args) -> int:
     return 0
 
 
-def cmd_status(cfg, store: Store, mirror) -> int:
+def cmd_status(cfg, store: Store, mirror, config_file: str) -> int:
     files = store.files()
     size = sum(os.path.getsize(os.path.join(store.root, f)) for f in files)
     runs, commits, machines = store.read_all()
     manifest_path = os.path.join(store.base, "manifest.json")
-    print(f"Config        {cfgmod.config_path()}{'' if os.path.exists(cfgmod.config_path()) else ' (not created yet: run tokentrail init)'}")
+    print(f"Config        {config_file}{'' if os.path.exists(config_file) else ' (not created yet: run tokentrail init)'}")
     print(f"Store         {store.root}  ({len(files)} files, {size / 1e6:.1f} MB)")
     print(f"This machine  {store.machine}")
     print(f"Machines      {', '.join(machines) or 'none yet'}")
@@ -181,7 +181,7 @@ def main(argv: list[str] | None = None) -> int:
     state = TelemetryState(store, syncer, mirror, args.days)
 
     if cmd == "status":
-        return cmd_status(cfg, store, mirror)
+        return cmd_status(cfg, store, mirror, args.config or cfgmod.config_path())
     if cmd == "sync":
         print(syncer.run())
         return 0

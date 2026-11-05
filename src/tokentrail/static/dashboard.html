@@ -73,6 +73,8 @@ dialog dl { display: grid; grid-template-columns: 160px 1fr; gap: 6px 12px; marg
 dialog dt { color: var(--ink-3); } dialog dd { margin: 0; word-break: break-word; }
 dialog pre { white-space: pre-wrap; background: var(--panel-2); padding: 10px; border-radius: 8px; font-size: 12px; max-height: 200px; overflow: auto; }
 .hide { display: none !important; }
+.storeline { margin: 0 0 10px; font-size: 12px; color: var(--ink-3); overflow-wrap: anywhere; }
+.storeline b { color: var(--ink-2); font-weight: 600; }
 a { color: var(--accent); }
 @media (max-width: 700px) { header { padding: 10px 12px; position: static; } .tabs { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; flex-basis: 100%; } .filters input[type=search] { flex-basis: 100%; } main { padding: 12px; } .charts { grid-template-columns: 1fr; } .donutwrap { grid-template-columns: 1fr; } dialog dl { grid-template-columns: 1fr; } .filters input[type=search] { min-width: 0; width: 100%; } }
 </style>
@@ -94,6 +96,7 @@ a { color: var(--accent); }
   </div>
 </header>
 <main>
+  <p class="storeline" id="storeline"></p>
   <section class="filters" aria-label="Filters">
     <span class="seg" id="win">
       <button data-days="1">Today</button><button data-days="7">Last 7 days</button><button data-days="30" aria-pressed="true">Last 30 days</button><button data-days="0">All</button>
@@ -103,6 +106,7 @@ a { color: var(--accent); }
     <span class="seg" id="gran"><button data-g="runs" aria-pressed="true">Task runs</button><button data-g="convs">Conversations</button></span>
     <input type="search" id="q" placeholder="Search prompts, models, repos, skills, tools…" aria-label="Search">
     <select id="f-agent" aria-label="Agent"></select>
+    <select id="f-machine" aria-label="Machine" class="hide"></select>
     <select id="f-model" aria-label="Model"></select>
     <select id="f-health" aria-label="Health outcome"></select>
   </section>
@@ -153,7 +157,7 @@ a { color: var(--accent); }
   const HEALTHY = new Set([H.HV, H.POS]);
   const isWrite = (t) => /(^|_)(write|edit|multiedit|replace|create_file|apply_patch|str_replace|notebookedit)/i.test(t);
 
-  const state = { data: null, mode: "agents", days: 30, from: "", to: "", gran: "runs", q: "", agent: "", model: "", health: "", chartTab: "all", sort: { key: "started", dir: -1 }, limit: 100, timer: null };
+  const state = { data: null, machine: "", mode: "agents", days: 30, from: "", to: "", gran: "runs", q: "", agent: "", model: "", health: "", chartTab: "all", sort: { key: "started", dir: -1 }, limit: 100, timer: null };
 
   /* ---------- health: same thresholds as segment.py ---------- */
   function classify(r) {
@@ -198,12 +202,13 @@ a { color: var(--accent); }
     if (!state.data) return [];
     let runs = state.data.runs.filter((r) => inWindow(r.started));
     if (state.agent) runs = runs.filter((r) => r.agent === state.agent);
+    if (state.machine) runs = runs.filter((r) => r.machine === state.machine);
     if (state.gran === "convs") runs = toConversations(runs);
     if (state.model) runs = runs.filter((r) => r.model === state.model);
     if (state.health) runs = runs.filter((r) => r.health === state.health);
     if (state.q) {
       const q = state.q.toLowerCase();
-      runs = runs.filter((r) => [r.run_id, r.prompt, r.title, r.model, r.workspace, r.agent, r.skills.join(" "), Object.keys(r.tools).join(" ")].join(" ").toLowerCase().includes(q));
+      runs = runs.filter((r) => [r.run_id, r.prompt, r.title, r.model, r.workspace, r.agent, r.machine, r.skills.join(" "), Object.keys(r.tools).join(" ")].join(" ").toLowerCase().includes(q));
     }
     return runs;
   }
@@ -361,7 +366,7 @@ a { color: var(--accent); }
     const tools = Object.entries(r.tools).sort((a, b) => b[1] - a[1]).map(([t, n]) => `${esc(t)}: ${n}`).join(" • ") || "none";
     $("#inspect-body").innerHTML = `<h2>Session telemetry inspector</h2><p class="muted">${esc(r.run_id)}${r.title ? " · " + esc(r.title) : ""}</p>
       <pre>${esc(r.prompt || "(no prompt text)")}</pre>
-      <dl><dt>Health</dt><dd>${pill(r.health)}</dd><dt>Agent / model</dt><dd>${esc(r.agent)} · ${esc(r.models.join(", ") || r.model)}</dd><dt>Workspace</dt><dd>${esc(r.workspace)} <span class="muted">${esc(r.cwd)}</span></dd>
+      <dl><dt>Health</dt><dd>${pill(r.health)}</dd><dt>Agent / model</dt><dd>${esc(r.agent)} · ${esc(r.models.join(", ") || r.model)}</dd><dt>Machine</dt><dd>${esc(r.machine || "")}</dd>${r.redacted ? "<dt>Prompt</dt><dd>redacted before upload</dd>" : ""}<dt>Workspace</dt><dd>${esc(r.workspace)} <span class="muted">${esc(r.cwd)}</span></dd>
       <dt>Steps</dt><dd>${fmt(r.steps)}${r.subagent_steps ? ` (${fmt(r.subagent_steps)} in subagents)` : ""}${r.runs ? ` across ${r.runs} task runs` : ""}</dd>
       <dt>Tokens</dt><dd>in ${fmt(r.input_tokens)} · cache write ${fmt(r.cache_write_tokens)} · cache read ${fmt(r.cache_read_tokens)} · out ${fmt(r.output_tokens)}${r.thinking_tokens ? ` (reasoning ${fmt(r.thinking_tokens)})` : ""}</dd>
       <dt>Tools called</dt><dd>${tools}</dd><dt>Skills</dt><dd>${esc(r.skills.join(", ")) || "none"}</dd>
@@ -420,6 +425,11 @@ a { color: var(--accent); }
       state.data = await res.json();
       const all = state.data.runs;
       fillSelect("#f-agent", "All agents", [...new Set(all.map((r) => r.agent))].sort(), state.agent);
+      const machines = state.data.store?.machines || [];
+      fillSelect("#f-machine", "All machines", machines, state.machine);
+      $("#f-machine").classList.toggle("hide", machines.length < 2);
+      const st = state.data.store || {}, ls = st.last_sync || {};
+      $("#storeline").innerHTML = `Store <b>${esc(st.path || "")}</b> · this machine <b>${esc(st.machine || "")}</b>${machines.length > 1 ? ` · ${machines.length} machines` : ""} · remote <b>${esc(st.remote || "none")}</b>${ls.at ? ` · last sync ${esc(ls.at.slice(11, 19))}, ${ls.parsed || 0} files read${ls.pushed ? `, ${ls.pushed} pushed` : ""}` : ""}`;
       fillSelect("#f-model", "All models", [...new Set(all.map((r) => r.model))].sort(), state.model);
       fillSelect("#f-health", "All outcomes", state.data.health_order, state.health);
       $("#synced").textContent = "⏱ Synced " + new Date().toLocaleTimeString();
@@ -440,6 +450,7 @@ a { color: var(--accent); }
   $("#gran").onclick = (e) => { const b = e.target.closest("[data-g]"); if (!b) return; state.gran = b.dataset.g; press($("#gran"), b); render(); };
   let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { state.q = e.target.value.trim(); state.limit = 100; render(); }, 150); };
   $("#f-agent").onchange = (e) => { state.agent = e.target.value; render(); };
+  $("#f-machine").onchange = (e) => { state.machine = e.target.value; render(); };
   $("#f-model").onchange = (e) => { state.model = e.target.value; render(); };
   $("#f-health").onchange = (e) => { state.health = e.target.value; render(); };
   $("#ctabs").onclick = (e) => { const b = e.target.closest("[data-ct]"); if (!b) return; state.chartTab = b.dataset.ct; render(); };
